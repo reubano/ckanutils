@@ -13,7 +13,7 @@ from __future__ import (
     unicode_literals)
 
 __title__ = 'CKAN Utils'
-__package_name__ = 'ckan-utils'
+__package_name__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility scripts'
 __email__ = 'reubano@gmail.com'
@@ -22,7 +22,7 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
 
-class Ckan-utils(object):
+class Ckanutils(object):
     """This is a description of the class."""
 
     def __init__(self, argument, kwarg=None):
@@ -36,17 +36,17 @@ class Ckan-utils(object):
 
         Returns
         -------
-        New instance of :class:`Ckan-utils`
-        :rtype: Ckan-utils
+        New instance of :class:`Ckanutils`
+        :rtype: Ckanutils
 
         Examples
         --------
-        >>> from . import Ckan-utils
-        >>> ckan-utils = Ckan-utils('argument')
-        >>> ckan-utils  #doctest: +ELLIPSIS
-        <class object Ckan-utils at 0x...>
-        >>> Ckan-utils()  #doctest: +ELLIPSIS
-        <script.Ckan-utils object at 0x...>
+        >>> from . import Ckanutils
+        >>> ckanutils = Ckanutils('argument')
+        >>> ckanutils  #doctest: +ELLIPSIS
+        <class object Ckanutils at 0x...>
+        >>> Ckanutils()  #doctest: +ELLIPSIS
+        <script.Ckanutils object at 0x...>
         """
 
         self.argument = argumentName
@@ -63,7 +63,7 @@ class Ckan-utils(object):
 
         Examples
         --------
-        >>> Ckan-utils('hello').argument
+        >>> Ckanutils('hello').argument
         'hello'
         """
         return self.argument
@@ -83,7 +83,7 @@ class Ckan-utils(object):
 
         Examples
         --------
-        >>> Ckan-utils('piki').multiply(2)
+        >>> Ckanutils('piki').multiply(2)
         'pikipiki'
         """
         return self.argument * value

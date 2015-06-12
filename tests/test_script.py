@@ -10,7 +10,7 @@ from scripttest import TestFileEnvironment
 def main():
     try:
         env = TestFileEnvironment('.scripttest')
-        result = env.run('ckan-utils --help')
+        result = env.run('ckanutils --help')
         print('%s' % result.stdout)
 
     except Exception as err:

@@ -20,7 +20,7 @@ clean: clean-build clean-pyc
 check-stage: helpers/check-stage
 pipme: pip install -r requirements.txt
 require: pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt
-lint: flake8 ckan-utils test
+lint: flake8 ckanutils test
 test: helpers/test
 release: helpers/release
 sdist: helpers/sdist

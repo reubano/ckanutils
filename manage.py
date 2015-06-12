@@ -27,7 +27,7 @@ def check():
 @manager.command
 def lint():
     """Check style with flake8"""
-    return call('flake8 ckan-utils test', shell=True)
+    return call('flake8 ckanutils test', shell=True)
 
 
 @manager.command

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    ckan-utils.tests
+    ckanutils.tests
     ~~~~~~~~~~~~~~~~
 
     Provides application unit tests
