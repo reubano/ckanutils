@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+
+""" Run nose and script tests """
+
+nosetests -xv
+python tests/test_script.py
