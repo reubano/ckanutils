@@ -8,7 +8,9 @@ tests
 Provides application unit tests
 """
 
-from sys import stderr
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
 
 initialized = False
 

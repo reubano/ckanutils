@@ -20,14 +20,16 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-import os
 import requests
 import ckanapi
+
+from . import utils
 
 CKAN_KEYS = [
     'hash_table_id', 'remote', 'api_env', 'api_key', 'user_agent', 'force',
     'quiet'
 ]
+
 
 class CKAN(object):
     """This is a description of the class.
@@ -53,7 +55,8 @@ class CKAN(object):
             api_key (str): The ckan api key.
             user_agent (str): The user agent.
             force (bool): Force (defaults to True).
-            quiet (Optional[bool]): Suppress debug statements (defaults to False).
+            quiet (Optional[bool]): Suppress debug statements (defaults to
+                False).
 
         Returns:
             New instance of :class:`CKAN`
@@ -65,9 +68,8 @@ class CKAN(object):
             <class object CKAN at 0x...>
         """
         remote = kwargs.get('remote')
-        api_key = kwargs.get('api_key')
-        user_agent = kwargs.get(user_agent)
-        ckan_kwargs = {'apikey': api_key, 'user_agent': user_agent}
+        keys = ['api_key', 'user_agent']
+        ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in keys)
 
         self.force = kwargs.get('force', True)
         self.quiet = kwargs.get('quiet')
@@ -105,7 +107,8 @@ class CKAN(object):
             ValidationError: If unable to validate user on ckan site.
 
         Examples:
-            >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': 'text'}])
+            >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': \
+            'text'}])
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
@@ -173,7 +176,7 @@ class CKAN(object):
             NotFound: If unable to find the resource.
 
         Examples:
-            >>> CKAN().insert_records('rid', records, [{'field', 'value'}])
+            >>> CKAN().insert_records('rid', [{'field', 'value'}])
         """
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
@@ -220,7 +223,7 @@ class CKAN(object):
 
         kwargs = {
             'resource_id': self.hash_table_id,
-            'filters':  {'datastore_id': resource_id},
+            'filters': {'datastore_id': resource_id},
             'fields': 'hash',
             'limit': 1
         }
@@ -247,7 +250,6 @@ class CKAN(object):
 
         return resource_hash
 
-
     def fetch_resource(self, resource_id, **kwargs):
         """Fetch a single resource from filestore.
 
@@ -271,14 +273,14 @@ class CKAN(object):
         """
         user_agent = kwargs.pop('user_agent', self.user_agent)
         chunksize = kwargs.get('chunksize')
-        kwargs.setdefault('filepath', utils.get_temp_filepath())
+        filepath = kwargs.get('filepath', utils.get_temp_filepath())
 
         try:
             resource = self.resource_show(id=resource_id)
         except ckanapi.NotFound:
             print(
                 'Resource %s not found on filestore at %s.' % (
-                    resource_id, ckan.address))
+                    resource_id, self.address))
             raise
 
         if self.verbose:
@@ -286,11 +288,5 @@ class CKAN(object):
 
         headers = {'User-Agent': user_agent}
         r = requests.get(resource['url'], stream=chunksize, headers=headers)
-        length = int(r.headers.get('content-length'))
-
-        if chunksize:
-            utils.write_file(filepath, r.iter_content(chunksize), **kwargs)
-        else:
-            utils.write_file(filepath, r.raw, **kwargs)
-
+        utils.write_file(filepath, r, **kwargs)
         return (r, filepath)

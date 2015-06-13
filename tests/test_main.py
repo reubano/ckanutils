@@ -8,10 +8,11 @@ tests.test_main
 Provides unit tests for the website.
 """
 
-import nose.tools as nt
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
 
-from . import stderr
-from pprint import pprint
+import nose.tools as nt
 
 
 def setup_module():

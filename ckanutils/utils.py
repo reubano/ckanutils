@@ -21,6 +21,7 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
+import sys
 import hashlib
 import itertools as it
 import unicodecsv as csv
@@ -76,8 +77,8 @@ def read_csv(csv_filepath, mode='rb', **kwargs):
         >>> read_csv('path/to/file')
     """
     with open(csv_filepath, mode) as f:
-        kwargs.setdefault('encoding', ENCODING)
-        header = csv.reader(f, **kwargs).next()
+        encoding = kwargs.get('encoding', ENCODING)
+        header = csv.reader(f, encoding=encoding, **kwargs).next()
 
         # Remove empty field names and slugify the rest
         names = [slugify(name, separator='_') for name in header if name]
@@ -108,12 +109,12 @@ def get_temp_filepath(delete=False):
     return tmpfile.name
 
 
-def write_file(filepath, contents, mode='wb', chunksize=0, bar_len=50):
+def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
     """Writes content to a named file.
 
     Args:
         filepath (str): The path of the file to write to.
-        contents (str): The file content.
+        r (obj): Requests object.
         mode (Optional[str]): The file open mode (defaults to 'wb').
         chunksize (Optional[int]): Number of bytes to write at a time (defaults
             to 0, i.e., all).
@@ -123,19 +124,25 @@ def write_file(filepath, contents, mode='wb', chunksize=0, bar_len=50):
         bool: True
 
     Examples:
-        >>> write_file(path/to/file')
+        >>> import requests
+        >>> r = requests.get('url')
+        >>> write_file('path/to/file', r)
         True
     """
+    length = int(r.headers.get('content-length'))
+
     with open(filepath, mode) as f:
         if chunksize:
-            for chunk in contents:
+            progress = 0
+
+            for chunk in r.iter_content(chunksize):
                 f.write(chunk)
                 progress += chunksize
                 bars = min(int(bar_len * progress / length), bar_len)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
         else:
-            f.write(contents)
+            f.write(r.raw)
 
     return True
 

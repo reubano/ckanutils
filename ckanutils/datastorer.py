@@ -8,11 +8,10 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-import argparse
 import traceback
 import sys
 
-from os import environ, path as p
+from os import unlink, environ
 from manager import Manager
 from . import utils
 from ckanutils.ckan import CKAN, CKAN_KEYS
@@ -27,8 +26,8 @@ HASH_TABLE_ENV = 'CKAN_HASH_TABLE_ID'
 PROD_REMOTE_ENV = 'CKAN_PROD_REMOTE_URL'
 DEV_REMOTE_ENV = 'CKAN_DEV_REMOTE_URL'
 
-CHUNKSIZE_ROWS = 10**3
-CHUNKSIZE_BYTES = 2**20
+CHUNKSIZE_ROWS = 10 ** 3
+CHUNKSIZE_BYTES = 2 ** 20
 
 CKAN_REMOTE = 'http://test-data.hdx.rwlabs.org'
 HASH_TABLE_ID = '4bc825fb-2c7e-49db-9133-ba4a9fa26868'
@@ -66,25 +65,27 @@ def update_hash_table(ckan, resource_id, resource_hash):
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
     ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
+
 @manager.command
 def ver():
     """Show ckanny version"""
     from . import __version__ as version
     print('v%s' % version)
 
+
 @manager.arg('resource_id', help='the resource id')
 @manager.arg('remote', 'r', help='the remote ckan url')
-@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % API_ENV,
-    default=environ.get(API_ENV))
+@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
+    API_ENV), default=environ.get(API_ENV))
 @manager.arg(
-    'hash_table_id', 'H', help='the hash table resource id (uses %s ENV if available)' % HASH_TABLE_ENV,
-    default=environ.get(HASH_TABLE_ENV))
+    'hash_table_id', 'H', help=('the hash table resource id (uses %s ENV if '
+    'available)' % HASH_TABLE_ENV), default=environ.get(HASH_TABLE_ENV))
 @manager.arg('user_agent', 'u', help='the user agent',
     default=USER_AGENT)
 @manager.arg('chunksize_rows', 'c', help='number of rows to write at a time',
     default=CHUNKSIZE_ROWS)
-@manager.arg('chunksize_bytes', 'C', help='number of bytes to read/write at a time',
-    default=CHUNKSIZE_BYTES)
+@manager.arg('chunksize_bytes', 'C', help=('number of bytes to read/write at a'
+    ' time'), default=CHUNKSIZE_BYTES)
 @manager.arg(
     'primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'.")
 @manager.arg(
@@ -100,7 +101,7 @@ def dsupdate(resource_id, **kwargs):
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in CKAN_KEYS)
 
     try:
-        ckan = CKAN(**kwargs)
+        ckan = CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
 
         if ckan.hash_table_id:
@@ -129,17 +130,18 @@ def dsupdate(resource_id, **kwargs):
         sys.exit(1)
     finally:
         print('Removing tempfile...')
-        os.unlink(filename)
+        unlink(filepath)
 
 
 @manager.arg('resource_id', help='the resource id')
 @manager.arg('remote', 'r', help='the remote ckan url')
-@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % API_ENV,
-    default=environ.get(API_ENV))
+@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
+    API_ENV), default=environ.get(API_ENV))
 @manager.arg('user_agent', 'u', help='the user agent',
     default=USER_AGENT)
 @manager.arg(
-    'filters', 'f', help='the filters to apply before deleting, e.g., {"name": "fred"}')
+    'filters', 'f', help=('the filters to apply before deleting, e.g., {"name"'
+    ': "fred"}'))
 @manager.command
 def dsdelete(resource_id, **kwargs):
     """Delete a datastore table"""
