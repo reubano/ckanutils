@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
 
-""" remove build artifacts """
+# remove build artifacts
 
 rm -fr build/
 rm -fr dist/

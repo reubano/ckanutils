@@ -42,8 +42,8 @@ def gen_fields(names):
         dict: The parsed field with type
 
     Examples:
-        >>> gen_fields(['date', 'raw_value', 'text']).next()
-        {'id': 'date', 'type': 'timestamp'}
+        >>> gen_fields(['date', 'raw_value', 'text']).next()['id']
+        u'date'
     """
     for name in names:
         if 'date' in name:
@@ -74,7 +74,12 @@ def read_csv(csv_filepath, mode='rb', **kwargs):
         NotFound: If unable to the resource.
 
     Examples:
-        >>> read_csv('path/to/file')
+        >>> import os
+        >>> filepath = get_temp_filepath()
+        >>> read_csv(filepath)
+        Traceback (most recent call last):
+        StopIteration
+        >>> os.unlink(filepath)
     """
     with open(csv_filepath, mode) as f:
         encoding = kwargs.get('encoding', ENCODING)
@@ -103,7 +108,8 @@ def get_temp_filepath(delete=False):
         str: The file path.
 
     Examples:
-        >>> get_temp_filepath()
+        >>> get_temp_filepath(delete=True)  #doctest: +ELLIPSIS
+        '/var/folders/...'
     """
     tmpfile = NamedTemporaryFile(delete=delete)
     return tmpfile.name
@@ -125,11 +131,12 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
 
     Examples:
         >>> import requests
-        >>> r = requests.get('url')
-        >>> write_file('path/to/file', r)
+        >>> filepath = get_temp_filepath(delete=True)
+        >>> r = requests.get('http://google.com')
+        >>> write_file(filepath, r)
         True
     """
-    length = int(r.headers.get('content-length'))
+    length = int(r.headers.get('content-length') or 0)
 
     with open(filepath, mode) as f:
         if chunksize:
@@ -142,7 +149,7 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
         else:
-            f.write(r.raw)
+            f.write(r.raw.read())
 
     return True
 
@@ -163,8 +170,8 @@ def chunk(iterable, chunksize=0, start=0, stop=None):
         Iter[List]: Chunked content.
 
     Examples:
-        >>> chunk([1,2,3,4,5,6], 2, 1).next()
-        [2,3]
+        >>> chunk([1, 2, 3, 4, 5, 6], 2, 1).next()
+        [2, 3]
     """
     i = it.islice(iter(iterable), start, stop)
 
@@ -188,10 +195,14 @@ def hash_file(filepath, hasher='sha1', chunksize=0):
             to 0, i.e., all).
 
     Returns:
-        List[dict]: Fields
+        str: File hash.
 
     Examples:
-        >>> hash_file('path/to/file')
+        >>> import os
+        >>> filepath = get_temp_filepath()
+        >>> hash_file(filepath)
+        'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        >>> os.unlink(filepath)
     """
     hasher = getattr(hashlib, hasher)()
 

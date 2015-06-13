@@ -14,24 +14,12 @@ import sys
 from os import unlink, environ
 from manager import Manager
 from . import utils
-from ckanutils.ckan import CKAN, CKAN_KEYS
-
+from . import ckan as api
 
 manager = Manager()
-manager.arg('version', 'v')
-
-USER_AGENT = 'ckanapiexample/1.0'
-API_ENV = 'CKAN_API_KEY'
-HASH_TABLE_ENV = 'CKAN_HASH_TABLE_ID'
-PROD_REMOTE_ENV = 'CKAN_PROD_REMOTE_URL'
-DEV_REMOTE_ENV = 'CKAN_DEV_REMOTE_URL'
 
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
-
-CKAN_REMOTE = 'http://test-data.hdx.rwlabs.org'
-HASH_TABLE_ID = '4bc825fb-2c7e-49db-9133-ba4a9fa26868'
-# USER_AGENT = 'HDX-Simon'
 
 
 def update_resource(ckan, resource_id, filepath, **kwargs):
@@ -74,14 +62,15 @@ def ver():
 
 
 @manager.arg('resource_id', help='the resource id')
-@manager.arg('remote', 'r', help='the remote ckan url')
+@manager.arg('remote', 'r', help=('the remote ckan url (uses %s ENV if '
+    'available)' % api.REMOTE_ENV), default=environ.get(api.REMOTE_ENV))
 @manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
-    API_ENV), default=environ.get(API_ENV))
+    api.API_KEY_ENV), default=environ.get(api.API_KEY_ENV))
 @manager.arg(
     'hash_table_id', 'H', help=('the hash table resource id (uses %s ENV if '
-    'available)' % HASH_TABLE_ENV), default=environ.get(HASH_TABLE_ENV))
-@manager.arg('user_agent', 'u', help='the user agent',
-    default=USER_AGENT)
+    'available)' % api.HASH_TABLE_ENV), default=environ.get(api.HASH_TABLE_ENV))
+@manager.arg('ua', 'u', help=('the user agent (uses %s ENV if '
+    'available)' % api.UA_ENV), default=environ.get(api.UA_ENV))
 @manager.arg('chunksize_rows', 'c', help='number of rows to write at a time',
     default=CHUNKSIZE_ROWS)
 @manager.arg('chunksize_bytes', 'C', help=('number of bytes to read/write at a'
@@ -98,10 +87,10 @@ def dsupdate(resource_id, **kwargs):
     """Update a datastore table"""
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.get('force')
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in CKAN_KEYS)
+    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
 
     try:
-        ckan = CKAN(**ckan_kwargs)
+        ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
 
         if ckan.hash_table_id:
@@ -136,19 +125,19 @@ def dsupdate(resource_id, **kwargs):
 @manager.arg('resource_id', help='the resource id')
 @manager.arg('remote', 'r', help='the remote ckan url')
 @manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
-    API_ENV), default=environ.get(API_ENV))
-@manager.arg('user_agent', 'u', help='the user agent',
-    default=USER_AGENT)
+    api.API_KEY_ENV), default=environ.get(api.API_KEY_ENV))
+@manager.arg('ua', 'u', help='the user agent',
+    default=api.DEF_USER_AGENT)
 @manager.arg(
     'filters', 'f', help=('the filters to apply before deleting, e.g., {"name"'
     ': "fred"}'))
 @manager.command
 def dsdelete(resource_id, **kwargs):
     """Delete a datastore table"""
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in CKAN_KEYS)
+    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
 
     try:
-        ckan = CKAN(**ckan_kwargs)
+        ckan = api.CKAN(**ckan_kwargs)
         ckan.delete_table(resource_id, filters=kwargs.get('filters'))
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))

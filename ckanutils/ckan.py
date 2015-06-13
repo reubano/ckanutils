@@ -23,12 +23,15 @@ from __future__ import (
 import requests
 import ckanapi
 
+from os import environ
 from . import utils
 
-CKAN_KEYS = [
-    'hash_table_id', 'remote', 'api_env', 'api_key', 'user_agent', 'force',
-    'quiet'
-]
+CKAN_KEYS = ['hash_table_id', 'remote', 'api_key', 'ua', 'force', 'quiet']
+DEF_USER_AGENT = 'ckanapiexample/1.0'
+API_KEY_ENV = 'CKAN_API_KEY'
+HASH_TABLE_ENV = 'CKAN_HASH_TABLE_ID'
+REMOTE_ENV = 'CKAN_REMOTE_URL'
+UA_ENV = 'CKAN_USER_AGENT'
 
 
 class CKAN(object):
@@ -53,7 +56,7 @@ class CKAN(object):
             hash_table_id (str): The datastore hash table resource id.
             remote (str): The remote ckan url.
             api_key (str): The ckan api key.
-            user_agent (str): The user agent.
+            ua (str): The user agent.
             force (bool): Force (defaults to True).
             quiet (Optional[bool]): Suppress debug statements (defaults to
                 False).
@@ -63,27 +66,38 @@ class CKAN(object):
 
         Examples:
             >>> from ckanutils.ckan import CKAN
-            >>> ckan = CKAN()
-            >>> ckan  #doctest: +ELLIPSIS
-            <class object CKAN at 0x...>
+            >>> CKAN()  #doctest: +ELLIPSIS
+            <ckanutils.ckan.CKAN object at 0x...>
         """
-        remote = kwargs.get('remote')
-        keys = ['api_key', 'user_agent']
-        ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in keys)
+        remote = kwargs.get('remote', environ.get(REMOTE_ENV))
+        default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
+        user_agent = kwargs.get('ua', default_ua)
+        hash_tbl_id = kwargs.get('hash_table_id', environ.get(HASH_TABLE_ENV))
 
         self.force = kwargs.get('force', True)
         self.quiet = kwargs.get('quiet')
+        self.user_agent = user_agent
         self.verbose = not self.quiet
-        self.hash_table_id = kwargs.get('hash_table_id')
+        # print('verbose', self.verbose)
+        self.hash_table_id = hash_tbl_id
+
+        ckan_kwargs = {
+            'apikey': kwargs.get('api_key', environ.get(API_KEY_ENV)),
+            'user_agent': user_agent
+        }
 
         instance = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, instance)(remote, **ckan_kwargs)
 
         self.address = ckan.address
 
-        # shortcut so we can write, e.g., self.datastore_search instead of
-        # self.action.datastore_search
-        self.update(ckan.action)
+        # shortcuts
+        self.datastore_search = ckan.action.datastore_search
+        self.datastore_create = ckan.action.datastore_create
+        self.datastore_delete = ckan.action.datastore_delete
+        self.datastore_upsert = ckan.action.datastore_upsert
+        self.datastore_search = ckan.action.datastore_search
+        self.resource_show = ckan.action.resource_show
 
     def create_table(self, resource_id, fields, **kwargs):
         """Create a datastore table.
@@ -105,21 +119,30 @@ class CKAN(object):
 
         Raises:
             ValidationError: If unable to validate user on ckan site.
+            NotFound: If unable to find resource.
 
         Examples:
-            >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': \
-            'text'}])
+        >>> from ckanutils.ckan import CKAN
+        >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': \
+'text'}])
+        Traceback (most recent call last):
+        NotFound: Resource "rid" was not found.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
         kwargs['fields'] = fields
 
-        try:
+        if self.verbose:
             print('Creating datastore table for resource %s...' % resource_id)
+
+        try:
             return self.datastore_create(**kwargs)
         except ckanapi.ValidationError as err:
-            print(err)
-            raise
+            if err.error_dict.get('resource_id') == [u'Not found: Resource']:
+                raise ckanapi.NotFound(
+                    'Resource "%s" was not found.' % resource_id)
+            else:
+                raise
 
     def delete_table(self, resource_id, **kwargs):
         """Delete a datastore table.
@@ -139,19 +162,20 @@ class CKAN(object):
 
         Raises:
             ValidationError: If unable to validate user on ckan site.
+            NotFound: If unable to find resource.
 
         Examples:
             >>> CKAN().delete_table('rid')
+            Traceback (most recent call last):
+            NotFound: Resource "rid" was not found.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
 
-        try:
+        if self.verbose:
             print('Deleting datastore table for resource %s...' % resource_id)
-            return self.datastore_delete(**kwargs)
-        except ckanapi.ValidationError as err:
-            print(err)
-            raise
+
+        return self.datastore_delete(**kwargs)
 
     def insert_records(self, resource_id, records, **kwargs):
         """Insert records into a datastore table.
@@ -176,7 +200,9 @@ class CKAN(object):
             NotFound: If unable to find the resource.
 
         Examples:
-            >>> CKAN().insert_records('rid', [{'field', 'value'}])
+            >>> CKAN(quiet=True).insert_records('rid', [{'field': 'value'}])
+            Traceback (most recent call last):
+            NotFound: Resource "rid" was not found.
         """
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
@@ -211,15 +237,15 @@ class CKAN(object):
             str: The datastore resource hash.
 
         Raises:
-            Exception: If hash_table_id isn't set.
+            Exception: If `hash_table_id` isn't set.
             NotAuthorized: If unable to authorize ckan user.
             NotFound: If unable to find the hash table resource.
 
         Examples:
-            >>> CKAN().get_hash('rid')
+            >>> CKAN(quiet=True).get_hash('rid')
         """
         if not self.hash_table_id:
-            raise Exception('hash_table_id not set!')
+            raise Exception('`hash_table_id` not set!')
 
         kwargs = {
             'resource_id': self.hash_table_id,
@@ -228,21 +254,14 @@ class CKAN(object):
             'limit': 1
         }
 
-        try:
-            result = self.datastore_search(**kwargs)
-        except ckanapi.NotAuthorized:
-            print('Access denied. Check your api key.')
-            raise
-        except ckanapi.NotFound:
-            print(
-                'Hash table %s not found on datastore at %s.' % (
-                    self.hash_table_id, self.address))
-            raise
+        result = self.datastore_search(**kwargs)
 
         try:
             resource_hash = result['records'][0]['hash']
         except IndexError:
-            print('Resource %s not found in hash table.' % resource_id)
+            if self.verbose:
+                print('Resource %s not found in hash table.' % resource_id)
+
             resource_hash = None
 
         if self.verbose:
@@ -270,23 +289,21 @@ class CKAN(object):
 
         Examples:
             >>> CKAN().fetch_resource('rid')
+            Traceback (most recent call last):
+            NotFound: Resource "rid" was not found.
         """
         user_agent = kwargs.pop('user_agent', self.user_agent)
-        chunksize = kwargs.get('chunksize')
         filepath = kwargs.get('filepath', utils.get_temp_filepath())
 
         try:
             resource = self.resource_show(id=resource_id)
         except ckanapi.NotFound:
-            print(
-                'Resource %s not found on filestore at %s.' % (
-                    resource_id, self.address))
-            raise
+            raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
 
         if self.verbose:
             print('Downloading resource %s...' % resource_id)
 
         headers = {'User-Agent': user_agent}
-        r = requests.get(resource['url'], stream=chunksize, headers=headers)
+        r = requests.get(resource['url'], stream=True, headers=headers)
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
