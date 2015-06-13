@@ -11,7 +11,7 @@ from __future__ import (
 import traceback
 import sys
 
-from os import unlink, environ
+from os import unlink, environ, path as p
 from manager import Manager
 from . import utils
 from . import ckan as api
@@ -28,7 +28,10 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     method = 'upsert' if primary_key else 'insert'
     create_keys = ['aliases', 'primary_key', 'indexes']
 
-    records = iter(utils.read_csv(filepath, **kwargs))
+    extension = p.splitext(filepath)[1].split('.')[1]
+    switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
+    parser = getattr(utils, switch.get(extension))
+    records = iter(parser(filepath, **kwargs))
     fields = utils.gen_fields(records.next().keys())
     create_kwargs = dict((k, v) for k, v in kwargs.items() if k in create_keys)
 

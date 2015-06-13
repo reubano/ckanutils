@@ -23,6 +23,7 @@ from __future__ import (
 
 import sys
 import hashlib
+import xlrd
 import itertools as it
 import unicodecsv as csv
 
@@ -96,6 +97,50 @@ def read_csv(csv_filepath, mode='rb', **kwargs):
         # Remove empty rows
         rows = it.ifilter(lambda r: any(r.strip() for r in r.values()), rows)
         return list(rows)
+
+
+def read_xls(xls_filepath, mode='rb', **kwargs):
+    """Reads an xls/xlsx file.
+
+    Args:
+        xls_filepath (str): The xls file path.
+        mode (Optional[str]): The file open mode (defaults to 'rb').
+        **kwargs: Keyword arguments that are passed to the xls reader.
+
+    Kwargs:
+        delimiter (str): Field delimiter (defaults to ',').
+        quotechar (str): Quote character (defaults to '"').
+        encoding (str): File encoding.
+
+    Returns:
+        List[dicts]: The xls rows.
+
+    Raises:
+        NotFound: If unable to the resource.
+
+    Examples:
+        >>> import os
+        >>> filepath = get_temp_filepath()
+        >>> read_xls(filepath)
+        Traceback (most recent call last):
+        StopIteration
+        >>> os.unlink(filepath)
+    """
+    book = xlrd.open_workbook(xls_filepath)
+    sheet = book.sheet_by_index(0)
+    count = xrange(sheet.nrows)
+    header = sheet.row_values(0)
+
+    # Slugify field names
+    names = [slugify(name, separator='_') for name in header]
+    reader = (dict(zip(names, sheet.row_values(i))) for i in count])
+
+    # Remove empty columns
+    rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+
+    # Remove empty rows
+    rows = it.ifilter(lambda r: any(r.strip() for r in r.values()), rows)
+    return list(rows)
 
 
 def get_temp_filepath(delete=False):
