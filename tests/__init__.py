@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-    ckanutils.tests
-    ~~~~~~~~~~~~~~~~
+# vim: sw=4:ts=4:expandtab
 
-    Provides application unit tests
+"""
+tests
+~~~~~
+
+Provides application unit tests
 """
 
 from sys import stderr

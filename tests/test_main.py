@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-    app.tests.test_site
-    ~~~~~~~~~~~~~~
+# vim: sw=4:ts=4:expandtab
 
-    Provides unit tests for the website.
+"""
+tests.test_main
+~~~~~~~~~~~~~~~
+
+Provides unit tests for the website.
 """
 
 import nose.tools as nt
