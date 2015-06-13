@@ -1,0 +1,4 @@
+ckanapi==3.5
+python-slugify==0.0.7
+unicodecsv==0.9.4
+-e git+https://github.com/reubano/manage.py@dev#egg=manage.py
