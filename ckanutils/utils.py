@@ -68,13 +68,15 @@ def _read_csv(f, encoding, names):
     return [r for r in rows if any(v.strip() for v in r.values())]
 
 
-def _datize_sheet(sheet, mode, dformat):
+def _datize_sheet(sheet, mode, dformat, aggresive=False):
     """Format date values (from xls/xslx file) as strings.
 
     Args:
         book (obj): `xlrd` workbook object.
         mode (str): `xlrd` workbook datemode property.
         dformat (str): `strftime()` date format.
+        aggresive (Optional[bool]): Format as date if 'date' is in fieldname
+            (default: False).
 
     Yields:
         Tuple[int, str]: A tuple of (row_number, value).
@@ -89,14 +91,19 @@ def _datize_sheet(sheet, mode, dformat):
         >>> it.islice(dated, 5, 6).next()
         (1, 'May 04, 1982')
     """
+    names = [n.lower() for n in sheet.row_values(0)]
+
     for i in xrange(sheet.nrows):
         row = it.izip(sheet.row_types(i), sheet.row_values(i))
 
-        for cell in row:
+        for col, cell in enumerate(row):
             ctype, value = cell
 
-            if ctype == xlrd.XL_CELL_DATE:
-                value = xldate_as_datetime(value, mode).strftime(dformat)
+            if (ctype == 3) or (aggresive and 'date' in names[col]):
+                try:
+                    value = xldate_as_datetime(value, mode).strftime(dformat)
+                except ValueError:
+                    pass
 
             yield (i, value)
 
@@ -290,7 +297,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
     names = [slugify(name, separator='_') for name in header if name.strip()]
 
     # Convert dates
-    dated = _datize_sheet(sheet, book.datemode, date_format)
+    dated = _datize_sheet(sheet, book.datemode, date_format, True)
 
     for key, group in it.groupby(dated, lambda v: v[0]):
         values = [g[1] for g in group]
