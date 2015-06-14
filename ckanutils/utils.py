@@ -58,6 +58,27 @@ def gen_fields(names):
 
 
 def _read_csv(f, encoding, names):
+    """Helps read a csv file.
+
+    Args:
+        f (obj): The csv file like object.
+        encoding (str): File encoding.
+        names (List[str]): The header names.
+
+    Returns:
+        List[dicts]: The csv rows.
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> f = open(filepath, 'rU')
+        >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
+        >>> rows = _read_csv(f, 'utf-8', names)
+        >>> f.close()
+        >>> rows[2]['some_date']
+        u'01-Jan-15'
+    """
     # Read data
     f.seek(0)
     reader = csv.DictReader(f, names, encoding=encoding)
@@ -70,6 +91,24 @@ def _read_csv(f, encoding, names):
 
 
 def detect_encoding(f):
+    """Detects a file's encoding.
+
+    Args:
+        f (obj): The file like object to detect.
+
+    Returns:
+        dict: The encoding result
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> f = open(filepath, 'rU')
+        >>> result = detect_encoding(f)
+        >>> f.close()
+        >>> result
+        {'confidence': 0.99, 'encoding': 'utf-8'}
+    """
     f.seek(0)
     detector = UniversalDetector()
 
@@ -142,6 +181,26 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
 
 
 def _datize_sheet(sheet, mode, dformat):
+    """Format date values (from xls/xslx file) as strings.
+
+    Args:
+        book (obj): `xlrd` workbook object.
+        mode (str): `xlrd` workbook datemode property.
+        dformat (str): `strftime()` date format.
+
+    Yields:
+        Tuple[int, str]: A tuple of (row_number, value).
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> book = xlrd.open_workbook(filepath)
+        >>> sheet = book.sheet_by_index(0)
+        >>> dated = _datize_sheet(sheet, book.datemode, '%B %d, %Y')
+        >>> it.islice(dated, 5, 6).next()
+        (1, 'May 04, 1982')
+    """
     for i in xrange(sheet.nrows):
         row = it.izip(sheet.row_types(i), sheet.row_values(i))
 
