@@ -27,6 +27,7 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 
+from xlrd.xldate import xldate_as_datetime
 from tempfile import NamedTemporaryFile
 from slugify import slugify
 
@@ -55,12 +56,12 @@ def gen_fields(names):
             yield {'id': name, 'type': 'text'}
 
 
-def read_csv(csv_filepath, mode='rb', **kwargs):
+def read_csv(csv_filepath, mode='rU', **kwargs):
     """Reads a csv file.
 
     Args:
         csv_filepath (str): The csv file path.
-        mode (Optional[str]): The file open mode (defaults to 'rb').
+        mode (Optional[str]): The file open mode (defaults to 'rU').
         **kwargs: Keyword arguments that are passed to the csv reader.
 
     Kwargs:
@@ -75,29 +76,47 @@ def read_csv(csv_filepath, mode='rb', **kwargs):
         NotFound: If unable to the resource.
 
     Examples:
-        >>> import os
+        >>> from os import unlink, path as p
         >>> filepath = get_temp_filepath()
         >>> read_csv(filepath)
         Traceback (most recent call last):
         StopIteration
-        >>> os.unlink(filepath)
+        >>> unlink(filepath)
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join('data/test.csv')
+        >>> rows = read_csv(filepath)
+        >>> rows[1]
+        {u'some_date': u'05/04/82', u'some_value': u'234'}
+        >>> [r.values()[0] for r in rows[1:]]
+        [u'05/04/82', u'01-Jan-15', u'December 31, 1995']
     """
     with open(csv_filepath, mode) as f:
         encoding = kwargs.get('encoding', ENCODING)
         header = csv.reader(f, encoding=encoding, **kwargs).next()
 
-        # Remove empty field names and slugify the rest
-        names = [slugify(name, separator='_') for name in header if name]
+        # Slugify field names and remove empty columns
+        names = [slugify(name, separator='_') for name in header if name.strip()]
         f.seek(0)
         reader = csv.DictReader(f, names, encoding=encoding)
 
-        # Remove empty columns
+        # Remove `None` keys
         rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
 
         # Remove empty rows
-        rows = it.ifilter(lambda r: any(r.strip() for r in r.values()), rows)
-        return list(rows)
+        return [r for r in rows if any(v.strip() for v in r.values())]
 
+
+def _datize_sheet(sheet, mode, dformat):
+    for i in xrange(sheet.nrows):
+        row = it.izip(sheet.row_types(i), sheet.row_values(i))
+
+        for cell in row:
+            ctype, value = cell
+
+            if ctype == xlrd.XL_CELL_DATE:
+                value = xldate_as_datetime(value, mode).strftime(dformat)
+
+            yield (i, value)
 
 def read_xls(xls_filepath, **kwargs):
     """Reads an xls/xlsx file.
@@ -107,8 +126,12 @@ def read_xls(xls_filepath, **kwargs):
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
+        date_format (str): Date format passed to `strftime()` (defaults to
+            '%B %d, %Y').
+
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
+
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
             about sheets is Book.nsheets and Book.sheet_names() (defaults to
@@ -117,35 +140,54 @@ def read_xls(xls_filepath, **kwargs):
         pad_rows (bool): Add empty cells so that all rows have the number of
             columns `Sheet.ncols` (defaults to False).
 
-    Returns:
-        List[dicts]: The xls rows.
+    Yields:
+        dict: An xls row.
 
     Raises:
         NotFound: If unable to the resource.
 
     Examples:
-        >>> import os
+        >>> from os import unlink, path as p
         >>> filepath = get_temp_filepath()
-        >>> read_xls(filepath)
+        >>> read_xls(filepath).next()
         Traceback (most recent call last):
-        StopIteration
-        >>> os.unlink(filepath)
+        XLRDError: File size is 0 bytes
+        >>> unlink(filepath)
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join('data/test.xls')
+        >>> rows = list(read_xls(filepath))
+        >>> rows[1]
+        {u'some_date': 'May 04, 1982', u'some_value': 234.0}
+        >>> [r.values()[0] for r in rows[1:]]
+        ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
     """
-    book = xlrd.open_workbook(xls_filepath)
+    date_format = kwargs.get('date_format', '%B %d, %Y')
+
+    xlrd_kwargs = {
+        'on_demand': kwargs.get('on_demand'),
+        'ragged_rows': not kwargs.get('pad_rows'),
+        'encoding_override': kwargs.get('encoding', True)
+    }
+
+    book = xlrd.open_workbook(xls_filepath, **xlrd_kwargs)
     sheet = book.sheet_by_index(0)
-    count = xrange(sheet.nrows)
     header = sheet.row_values(0)
 
-    # Slugify field names
-    names = [slugify(name, separator='_') for name in header]
-    reader = (dict(zip(names, sheet.row_values(i))) for i in count)
+    # Slugify field names and remove empty columns
+    names = [slugify(name, separator='_') for name in header if name.strip()]
 
-    # Remove empty columns
-    rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+    # Convert dates
+    dated = _datize_sheet(sheet, book.datemode, date_format)
 
-    # Remove empty rows
-    rows = it.ifilter(lambda r: any(r.strip() for r in r.values()), rows)
-    return list(rows)
+    for key, group in it.groupby(dated, lambda v: v[0]):
+        values = [g[1] for g in group]
+
+        # Remove empty rows
+        try:
+            if any(v.strip() for v in values):
+                yield dict(zip(names, values))
+        except AttributeError:
+            yield dict(zip(names, values))
 
 
 def get_temp_filepath(delete=False):
