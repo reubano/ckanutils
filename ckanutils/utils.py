@@ -107,7 +107,6 @@ def read_xls(xls_filepath, **kwargs):
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
-        delimiter (str): Field delimiter (defaults to ',').
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
         on_demand (bool): open_workbook() loads global data and returns without
@@ -115,8 +114,8 @@ def read_xls(xls_filepath, **kwargs):
             about sheets is Book.nsheets and Book.sheet_names() (defaults to
             False).
 
-        pad_rows (bool): Add empty cells so that all rows have the same size
-            (Sheet.ncols). (defaults to False).
+        pad_rows (bool): Add empty cells so that all rows have the number of
+            columns `Sheet.ncols` (defaults to False).
 
     Returns:
         List[dicts]: The xls rows.
