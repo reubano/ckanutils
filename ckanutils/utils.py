@@ -35,28 +35,6 @@ from slugify import slugify
 ENCODING = 'utf-8'
 
 
-def gen_fields(names):
-    """Tries to determine field types based on field names.
-
-    Args:
-        names (List[str]): Field name.
-
-    Yields:
-        dict: The parsed field with type
-
-    Examples:
-        >>> gen_fields(['date', 'raw_value', 'text']).next()['id']
-        u'date'
-    """
-    for name in names:
-        if 'date' in name:
-            yield {'id': name, 'type': 'timestamp'}
-        elif 'value' in name:
-            yield {'id': name, 'type': 'float'}
-        else:
-            yield {'id': name, 'type': 'text'}
-
-
 def _read_csv(f, encoding, names):
     """Helps read a csv file.
 
@@ -88,6 +66,61 @@ def _read_csv(f, encoding, names):
 
     # Remove empty rows
     return [r for r in rows if any(v.strip() for v in r.values())]
+
+
+def _datize_sheet(sheet, mode, dformat):
+    """Format date values (from xls/xslx file) as strings.
+
+    Args:
+        book (obj): `xlrd` workbook object.
+        mode (str): `xlrd` workbook datemode property.
+        dformat (str): `strftime()` date format.
+
+    Yields:
+        Tuple[int, str]: A tuple of (row_number, value).
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> book = xlrd.open_workbook(filepath)
+        >>> sheet = book.sheet_by_index(0)
+        >>> dated = _datize_sheet(sheet, book.datemode, '%B %d, %Y')
+        >>> it.islice(dated, 5, 6).next()
+        (1, 'May 04, 1982')
+    """
+    for i in xrange(sheet.nrows):
+        row = it.izip(sheet.row_types(i), sheet.row_values(i))
+
+        for cell in row:
+            ctype, value = cell
+
+            if ctype == xlrd.XL_CELL_DATE:
+                value = xldate_as_datetime(value, mode).strftime(dformat)
+
+            yield (i, value)
+
+
+def gen_fields(names):
+    """Tries to determine field types based on field names.
+
+    Args:
+        names (List[str]): Field name.
+
+    Yields:
+        dict: The parsed field with type
+
+    Examples:
+        >>> gen_fields(['date', 'raw_value', 'text']).next()['id']
+        u'date'
+    """
+    for name in names:
+        if 'date' in name:
+            yield {'id': name, 'type': 'timestamp'}
+        elif 'value' in name:
+            yield {'id': name, 'type': 'float'}
+        else:
+            yield {'id': name, 'type': 'text'}
 
 
 def detect_encoding(f):
@@ -178,39 +211,6 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
             rows = _read_csv(f, result['encoding'], names)
 
         return rows
-
-
-def _datize_sheet(sheet, mode, dformat):
-    """Format date values (from xls/xslx file) as strings.
-
-    Args:
-        book (obj): `xlrd` workbook object.
-        mode (str): `xlrd` workbook datemode property.
-        dformat (str): `strftime()` date format.
-
-    Yields:
-        Tuple[int, str]: A tuple of (row_number, value).
-
-    Examples:
-        >>> from os import path as p
-        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> book = xlrd.open_workbook(filepath)
-        >>> sheet = book.sheet_by_index(0)
-        >>> dated = _datize_sheet(sheet, book.datemode, '%B %d, %Y')
-        >>> it.islice(dated, 5, 6).next()
-        (1, 'May 04, 1982')
-    """
-    for i in xrange(sheet.nrows):
-        row = it.izip(sheet.row_types(i), sheet.row_values(i))
-
-        for cell in row:
-            ctype, value = cell
-
-            if ctype == xlrd.XL_CELL_DATE:
-                value = xldate_as_datetime(value, mode).strftime(dformat)
-
-            yield (i, value)
 
 
 def read_xls(xls_filepath, **kwargs):
