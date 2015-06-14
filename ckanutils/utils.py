@@ -111,7 +111,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         StopIteration
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join('data/test.csv')
+        >>> filepath = p.join(parent_dir, 'data', 'test.csv')
         >>> rows = read_csv(filepath)
         >>> len(rows)
         4
@@ -190,7 +190,7 @@ def read_xls(xls_filepath, **kwargs):
         XLRDError: File size is 0 bytes
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-        >>> filepath = p.join('data/test.xls')
+        >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> rows = list(read_xls(filepath))
         >>> len(rows)
         4
@@ -202,7 +202,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in rows[1:]]
         ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
-        >>> filepath = p.join('data/test.xlsx')
+        >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
         >>> rows = list(read_xls(filepath))
         >>> len(rows)
         4
