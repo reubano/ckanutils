@@ -57,9 +57,8 @@ class CKAN(object):
             remote (str): The remote ckan url.
             api_key (str): The ckan api key.
             ua (str): The user agent.
-            force (bool): Force (defaults to True).
-            quiet (Optional[bool]): Suppress debug statements (defaults to
-                False).
+            force (bool): Force (default: True).
+            quiet (Optional[bool]): Suppress debug statements (default: False).
 
         Returns:
             New instance of :class:`CKAN`
@@ -185,7 +184,7 @@ class CKAN(object):
 
         Kwargs:
             method (str): Insert method. One of ['update, 'insert', 'upsert']
-                (defaults to 'insert').
+                (default: 'insert').
             force (bool): Create resource even if read-only.
             start (int): Row number to start from (zero indexed).
             stop (int): Row number to stop at (zero indexed).

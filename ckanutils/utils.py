@@ -168,12 +168,12 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
 
     Args:
         csv_filepath (str): The csv file path.
-        mode (Optional[str]): The file open mode (defaults to 'rU').
+        mode (Optional[str]): The file open mode (default: 'rU').
         **kwargs: Keyword arguments that are passed to the csv reader.
 
     Kwargs:
-        delimiter (str): Field delimiter (defaults to ',').
-        quotechar (str): Quote character (defaults to '"').
+        delimiter (str): Field delimiter (default: ',').
+        quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
 
     Returns:
@@ -228,7 +228,7 @@ def read_xls(xls_filepath, **kwargs):
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
-        date_format (str): Date format passed to `strftime()` (defaults to
+        date_format (str): Date format passed to `strftime()` (default:
             '%B %d, %Y').
 
         encoding (str): File encoding. By default, the encoding is derived from
@@ -236,11 +236,11 @@ def read_xls(xls_filepath, **kwargs):
 
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
-            about sheets is Book.nsheets and Book.sheet_names() (defaults to
+            about sheets is Book.nsheets and Book.sheet_names() (default:
             False).
 
         pad_rows (bool): Add empty cells so that all rows have the number of
-            columns `Sheet.ncols` (defaults to False).
+            columns `Sheet.ncols` (default: False).
 
     Yields:
         dict: An xls row.
@@ -314,7 +314,7 @@ def get_temp_filepath(delete=False):
     """Creates a named temporary file.
 
     Args:
-        delete (Optional[bool]): Delete file after closing (defaults to False).
+        delete (Optional[bool]): Delete file after closing (default: False).
 
     Returns:
         str: The file path.
@@ -333,10 +333,10 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
     Args:
         filepath (str): The path of the file to write to.
         r (obj): Requests object.
-        mode (Optional[str]): The file open mode (defaults to 'wb').
+        mode (Optional[str]): The file open mode (default: 'wb').
         chunksize (Optional[int]): Number of bytes to write at a time (defaults
             to 0, i.e., all).
-        bar_len (Optional[int]): Length of progress bar (defaults to 50).
+        bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
         bool: True
@@ -373,9 +373,9 @@ def chunk(iterable, chunksize=0, start=0, stop=None):
     Args:
         iterable (iterable): Content to group into chunks.
         chunksize (Optional[int]): Number of chunks to include in a group (
-            defaults to 0, i.e., all).
+            default: 0, i.e., all).
 
-        start (Optional[int]): Starting item (zero indexed, defaults to 0).
+        start (Optional[int]): Starting item (zero indexed, default: 0).
         stop (Optional[int]): Ending item (zero indexed).
 
     Returns:
