@@ -28,6 +28,7 @@ import itertools as it
 import unicodecsv as csv
 
 from xlrd.xldate import xldate_as_datetime
+from chardet.universaldetector import UniversalDetector
 from tempfile import NamedTemporaryFile
 from slugify import slugify
 
@@ -54,6 +55,32 @@ def gen_fields(names):
             yield {'id': name, 'type': 'float'}
         else:
             yield {'id': name, 'type': 'text'}
+
+
+def _read_csv(f, encoding, names):
+    # Read data
+    f.seek(0)
+    reader = csv.DictReader(f, names, encoding=encoding)
+
+    # Remove `None` keys
+    rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+
+    # Remove empty rows
+    return [r for r in rows if any(v.strip() for v in r.values())]
+
+def _detect_encoding(f):
+    f.seek(0)
+    detector = UniversalDetector()
+
+    for line in f:
+        detector.feed(line)
+
+        if detector.done:
+            break
+
+    detector.close()
+    # print('detector.result', detector.result)
+    return detector.result
 
 
 def read_csv(csv_filepath, mode='rU', **kwargs):
@@ -85,9 +112,15 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join('data/test.csv')
         >>> rows = read_csv(filepath)
-        >>> rows[1]
-        {u'some_date': u'05/04/82', u'some_value': u'234'}
-        >>> [r.values()[0] for r in rows[1:]]
+        >>> len(rows)
+        4
+        >>> keys = sorted(rows[1].keys())
+        >>> keys
+        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
+        >>> [rows[1][k] for k in keys] == [u'05/04/82', u'234', \
+u'Iñtërnâtiônàližætiøn', u'Ādam']
+        True
+        >>> [r['some_date'] for r in rows[1:]]
         [u'05/04/82', u'01-Jan-15', u'December 31, 1995']
     """
     with open(csv_filepath, mode) as f:
@@ -96,14 +129,15 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
 
         # Slugify field names and remove empty columns
         names = [slugify(name, separator='_') for name in header if name.strip()]
-        f.seek(0)
-        reader = csv.DictReader(f, names, encoding=encoding)
 
-        # Remove `None` keys
-        rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+        try:
+            rows = _read_csv(f, encoding, names)
+        except UnicodeDecodeError:
+            # Try to detect the encoding
+            result = _detect_encoding(f)
+            rows = _read_csv(f, result['encoding'], names)
 
-        # Remove empty rows
-        return [r for r in rows if any(v.strip() for v in r.values())]
+        return rows
 
 
 def _datize_sheet(sheet, mode, dformat):
@@ -156,9 +190,27 @@ def read_xls(xls_filepath, **kwargs):
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join('data/test.xls')
         >>> rows = list(read_xls(filepath))
-        >>> rows[1]
-        {u'some_date': 'May 04, 1982', u'some_value': 234.0}
-        >>> [r.values()[0] for r in rows[1:]]
+        >>> len(rows)
+        4
+        >>> keys = sorted(rows[1].keys())
+        >>> keys
+        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
+        >>> [rows[1][k] for k in keys] == ['May 04, 1982', 234.0, \
+u'Iñtërnâtiônàližætiøn', u'Ādam']
+        True
+        >>> [r['some_date'] for r in rows[1:]]
+        ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
+        >>> filepath = p.join('data/test.xlsx')
+        >>> rows = list(read_xls(filepath))
+        >>> len(rows)
+        4
+        >>> keys = sorted(rows[1].keys())
+        >>> keys
+        [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
+        >>> [rows[1][k] for k in keys] == ['May 04, 1982', 234.0, \
+u'Iñtërnâtiônàližætiøn', u'Ādam']
+        True
+        >>> [r['some_date'] for r in rows[1:]]
         ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
     """
     date_format = kwargs.get('date_format', '%B %d, %Y')
