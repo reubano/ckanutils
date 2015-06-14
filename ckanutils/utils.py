@@ -69,7 +69,7 @@ def _read_csv(f, encoding, names):
     return [r for r in rows if any(v.strip() for v in r.values())]
 
 
-def _detect_encoding(f):
+def detect_encoding(f):
     f.seek(0)
     detector = UniversalDetector()
 
@@ -135,7 +135,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
             rows = _read_csv(f, encoding, names)
         except UnicodeDecodeError:
             # Try to detect the encoding
-            result = _detect_encoding(f)
+            result = detect_encoding(f)
             rows = _read_csv(f, result['encoding'], names)
 
         return rows
