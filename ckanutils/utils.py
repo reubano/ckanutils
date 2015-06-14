@@ -139,7 +139,7 @@ def read_xls(xls_filepath, **kwargs):
 
     # Slugify field names
     names = [slugify(name, separator='_') for name in header]
-    reader = (dict(zip(names, sheet.row_values(i))) for i in count])
+    reader = (dict(zip(names, sheet.row_values(i))) for i in count)
 
     # Remove empty columns
     rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
