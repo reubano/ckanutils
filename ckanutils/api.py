@@ -159,12 +159,9 @@ class CKAN(object):
 
         Raises:
             ValidationError: If unable to validate user on ckan site.
-            NotFound: If unable to find resource.
 
         Examples:
             >>> CKAN().delete_table('rid')
-            Traceback (most recent call last):
-            NotFound: Resource "rid" was not found.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
@@ -172,7 +169,15 @@ class CKAN(object):
         if self.verbose:
             print('Deleting datastore table for resource %s...' % resource_id)
 
-        return self.datastore_delete(**kwargs)
+        try:
+            result = self.datastore_delete(**kwargs)
+        except ckanapi.NotFound:
+            result = None
+
+            if self.verbose:
+                print("Can't delete, datastore resource %s. Table not found." % resource_id)
+
+        return result
 
     def insert_records(self, resource_id, records, **kwargs):
         """Insert records into a datastore table.
@@ -218,7 +223,7 @@ class CKAN(object):
                     'Adding records %i - %i to resource %s...' % (
                         count, count + length - 1, resource_id))
 
-            kwargs['records'] = records
+            kwargs['records'] = chunk
             self.datastore_upsert(**kwargs)
             count += length
 
@@ -290,7 +295,7 @@ class CKAN(object):
             NotFound: Resource "rid" was not found.
         """
         user_agent = kwargs.pop('user_agent', self.user_agent)
-        filepath = kwargs.get('filepath', utils.get_temp_filepath())
+        filepath = kwargs.pop('filepath', utils.get_temp_filepath())
 
         try:
             resource = self.resource_show(id=resource_id)

@@ -31,8 +31,8 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     extension = p.splitext(filepath)[1].split('.')[1]
     switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
     parser = getattr(utils, switch.get(extension))
-    records = iter(parser(filepath, **kwargs))
-    fields = utils.gen_fields(records.next().keys())
+    records = iter(parser(filepath, encoding=kwargs.get('encoding')))
+    fields = list(utils.gen_fields(records.next().keys()))
     create_kwargs = dict((k, v) for k, v in kwargs.items() if k in create_keys)
 
     if not primary_key:
@@ -75,19 +75,19 @@ def ver():
 @manager.arg('ua', 'u', help=('the user agent (uses %s ENV if '
     'available)' % api.UA_ENV), default=environ.get(api.UA_ENV))
 @manager.arg('chunksize_rows', 'c', help='number of rows to write at a time',
-    default=CHUNKSIZE_ROWS)
+    type=int, default=CHUNKSIZE_ROWS)
 @manager.arg('chunksize_bytes', 'C', help=('number of bytes to read/write at a'
-    ' time'), default=CHUNKSIZE_BYTES)
-@manager.arg(
-    'primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'.")
+    ' time'), type=int, default=CHUNKSIZE_BYTES)
+@manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.arg(
-    'force', 'F', help="update resource even if it hasn't changed.",
+    'force', 'f', help="update resource even if it hasn't changed.",
     type=bool, default=False)
 @manager.command
 def dsupdate(resource_id, **kwargs):
     """Update a datastore table"""
+    verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.get('force')
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
@@ -96,19 +96,23 @@ def dsupdate(resource_id, **kwargs):
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
 
-        if ckan.hash_table_id:
+        if ckan.hash_table_id and not force:
             old_hash = ckan.get_hash(resource_id)
-            new_hash = utils.hash_file(filepath, chunksize=chunk_bytes)
+            hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
+            new_hash = utils.hash_file(filepath, **hash_kwargs)
             doesnt_need_update = new_hash == old_hash
+        elif force:
+            doesnt_need_update = False
 
         if ckan.hash_table_id and doesnt_need_update and not force:
-            print('No new data found. Not updating datastore.')
+            if verbose:
+                print('No new data found. Not updating datastore.')
             sys.exit(0)
-        elif ckan.hash_table_id and force:
-            print('No new data found, but update forced. Updating datastore...')
-        elif ckan.hash_table_id:
+        elif force and verbose:
+            print('Hashes not checked due to forced update. Updating datastore...')
+        elif ckan.hash_table_id and verbose:
             print('New data found. Updating datastore...')
-        else:
+        elif verbose:
             print('`hash_table_id` not set. Updating datastore...')
 
         kwargs['encoding'] = r.encoding

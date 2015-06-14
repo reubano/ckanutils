@@ -122,9 +122,11 @@ def gen_fields(names):
         u'date'
     """
     for name in names:
-        if 'date' in name:
-            yield {'id': name, 'type': 'timestamp'}
-        elif 'value' in name:
+        # You can't insert a empty string into a timestamp, so skip this step
+        # until a work-a-around is inplace to convert empty strings to `null`s
+        # if 'date' in name:
+        #     yield {'id': name, 'type': 'timestamp'}
+        if 'value' in name:
             yield {'id': name, 'type': 'float'}
         else:
             yield {'id': name, 'type': 'text'}
@@ -204,7 +206,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
         [u'05/04/82', u'01-Jan-15', u'December 31, 1995']
     """
     with open(csv_filepath, mode) as f:
-        encoding = kwargs.get('encoding', ENCODING)
+        encoding = kwargs.pop('encoding', ENCODING)
         header = csv.reader(f, encoding=encoding, **kwargs).next()
 
         # Slugify field names and remove empty columns
