@@ -68,6 +68,7 @@ def _read_csv(f, encoding, names):
     # Remove empty rows
     return [r for r in rows if any(v.strip() for v in r.values())]
 
+
 def _detect_encoding(f):
     f.seek(0)
     detector = UniversalDetector()
@@ -128,7 +129,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
         header = csv.reader(f, encoding=encoding, **kwargs).next()
 
         # Slugify field names and remove empty columns
-        names = [slugify(name, separator='_') for name in header if name.strip()]
+        names = [slugify(n, separator='_') for n in header if n.strip()]
 
         try:
             rows = _read_csv(f, encoding, names)
@@ -151,6 +152,7 @@ def _datize_sheet(sheet, mode, dformat):
                 value = xldate_as_datetime(value, mode).strftime(dformat)
 
             yield (i, value)
+
 
 def read_xls(xls_filepath, **kwargs):
     """Reads an xls/xlsx file.
