@@ -14,7 +14,7 @@ import sys
 from os import unlink, environ, path as p
 from manager import Manager
 from . import utils
-from . import ckan as api
+from . import api
 
 manager = Manager()
 

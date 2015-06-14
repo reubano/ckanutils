@@ -2,8 +2,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-ckanutils.ckan
-~~~~~~~~~~~~~~
+ckanutils.api
+~~~~~~~~~~~~~
 
 Provides methods for interacting with a CKAN instance
 
@@ -65,9 +65,8 @@ class CKAN(object):
             New instance of :class:`CKAN`
 
         Examples:
-            >>> from ckanutils.ckan import CKAN
             >>> CKAN()  #doctest: +ELLIPSIS
-            <ckanutils.ckan.CKAN object at 0x...>
+            <ckanutils.api.CKAN object at 0x...>
         """
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
@@ -86,8 +85,8 @@ class CKAN(object):
             'user_agent': user_agent
         }
 
-        instance = 'RemoteCKAN' if remote else 'LocalCKAN'
-        ckan = getattr(ckanapi, instance)(remote, **ckan_kwargs)
+        attr = 'RemoteCKAN' if remote else 'LocalCKAN'
+        ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
         self.address = ckan.address
 
@@ -122,7 +121,6 @@ class CKAN(object):
             NotFound: If unable to find resource.
 
         Examples:
-        >>> from ckanutils.ckan import CKAN
         >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': \
 'text'}])
         Traceback (most recent call last):
