@@ -9,18 +9,57 @@ from __future__ import (
     unicode_literals)
 
 from sys import exit, stderr
+from os import path as p
 from scripttest import TestFileEnvironment
+from ckanutils import __version__ as version
 
+parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+script = p.join(parent_dir, 'bin', 'ckanny')
 
-def main():
-    try:
-        env = TestFileEnvironment('.scripttest')
-        result = env.run('ckanutils --help')
-        print('%s' % result.stdout)
+def main(verbose=False):
+    env = TestFileEnvironment('.scripttest')
+    test_num = 1
 
-    except Exception as err:
-        stderr.write('ERROR: %s\n' % str(err))
+    # Test main usage
+    result = env.run('%s --help' % script)
 
+    if verbose:
+        print(result.stdout)
+
+    assert result.stdout.split('\n')[0] == 'usage: ckanny <command> [<args>]'
+    print('\nScripttest: #%i ... ok' % test_num)
+    test_num += 1
+
+    # Test dsdelete usage
+    result = env.run('%s dsdelete --help' % script)
+
+    if verbose:
+        print(result.stdout)
+
+    assert ' '.join(result.stdout.split(' ')[:3]) == 'usage: ckanny [-h]'
+    print('Scripttest: #%i ... ok' % test_num)
+    test_num += 1
+
+    # Test dsupdate usage
+    result = env.run('%s dsupdate --help' % script)
+
+    if verbose:
+        print(result.stdout)
+
+    assert ' '.join(result.stdout.split(' ')[:3]) == 'usage: ckanny [-h]'
+    print('Scripttest: #%i ... ok' % test_num)
+    test_num += 1
+
+    # Test version
+    result = env.run('%s ver' % script)
+
+    if verbose:
+        print(result.stdout)
+
+    assert result.stdout.split('\n')[0] == 'v%s' % version
+    print('Scripttest: #%i ... ok' % test_num)
+    print('-----------------------------')
+    print('Ran %i tests\n\nOK' % test_num)
     exit(0)
 
 
