@@ -3,8 +3,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-ckanutils.ckan
-~~~~~~~~~~~~~~
+ckanutils.utils
+~~~~~~~~~~~~~~~
 
 Provides miscellaneous utility methods
 
@@ -56,7 +56,7 @@ def gen_fields(names):
 
 
 def read_csv(csv_filepath, mode='rb', **kwargs):
-    """Reads a csv.
+    """Reads a csv file.
 
     Args:
         csv_filepath (str): The csv file path.
@@ -99,18 +99,24 @@ def read_csv(csv_filepath, mode='rb', **kwargs):
         return list(rows)
 
 
-def read_xls(xls_filepath, mode='rb', **kwargs):
+def read_xls(xls_filepath, **kwargs):
     """Reads an xls/xlsx file.
 
     Args:
         xls_filepath (str): The xls file path.
-        mode (Optional[str]): The file open mode (defaults to 'rb').
         **kwargs: Keyword arguments that are passed to the xls reader.
 
     Kwargs:
         delimiter (str): Field delimiter (defaults to ',').
-        quotechar (str): Quote character (defaults to '"').
-        encoding (str): File encoding.
+        encoding (str): File encoding. By default, the encoding is derived from
+            the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
+        on_demand (bool): open_workbook() loads global data and returns without
+            releasing resources. At this stage, the only information available
+            about sheets is Book.nsheets and Book.sheet_names() (defaults to
+            False).
+
+        pad_rows (bool): Add empty cells so that all rows have the same size
+            (Sheet.ncols). (defaults to False).
 
     Returns:
         List[dicts]: The xls rows.
