@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
 
-""" package and upload a release """
+# package and upload a release
 
 ./clean-build
 ./clean-pyc

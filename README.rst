@@ -2,14 +2,14 @@ CKAN Utils |travis| |version| |pypi|
 ====================================
 
 
-.. |travis| image:: https://secure.travis-ci.org/reubano/ckan-utils.png?branch=master
-    :target: https://travis-ci.org/reubano/ckan-utils
+.. |travis| image:: https://secure.travis-ci.org/reubano/ckanutils.png?branch=master
+    :target: https://travis-ci.org/reubano/ckanutils
 
-.. |version| image:: https://badge.fury.io/py/ckan-utils.png
-    :target: http://badge.fury.io/py/ckan-utils
+.. |version| image:: https://badge.fury.io/py/ckanutils.png
+    :target: http://badge.fury.io/py/ckanutils
 
-.. |pypi| image:: https://pypip.in/d/ckan-utils/badge.png
-    :target: https://pypi.python.org/pypi/ckan-utils
+.. |pypi| image:: https://pypip.in/d/ckanutils/badge.png
+    :target: https://pypi.python.org/pypi/ckanutils
 
 Introduction
 ------------
@@ -22,14 +22,14 @@ Using CKAN Utils
 Usage
 ^^^^^
 
-    ckan-utils [options] <argument>
+    ckanutils [options] <argument>
 
 Examples
 ^^^^^^^^
 
 *show help*
 
-    ckan-utils -h
+    ckanutils -h
 
 Options
 ^^^^^^^
@@ -50,19 +50,19 @@ Features
 
 ==============  ==========================================================
 Python support  Python 2.7, >= 3.3
-Source          https://github.com/reubano/ckan-utils
-Docs            http://ckan-utils.rtfd.org
-Changelog       http://ckan-utils.readthedocs.org/en/latest/history.html
-Issues          https://github.com/reubano/ckan-utils/issues
-Travis          http://travis-ci.org/reubano/ckan-utils
-pypi            https://pypi.python.org/pypi/ckan-utils
+Source          https://github.com/reubano/ckanutils
+Docs            http://ckanutils.rtfd.org
+Changelog       http://ckanutils.readthedocs.org/en/latest/history.html
+Issues          https://github.com/reubano/ckanutils/issues
+Travis          http://travis-ci.org/reubano/ckanutils
+pypi            https://pypi.python.org/pypi/ckanutils
 git repo        .. code-block:: bash
 
-                    git clone https://github.com/reubano/ckan-utils.git
+                    git clone https://github.com/reubano/ckanutils.git
 install dev     .. code-block:: bash
 
-                    git clone https://github.com/reubano/ckan-utils.git ckan-utils
-                    cd ./ckan-utils
+                    git clone https://github.com/reubano/ckanutils.git ckanutils
+                    cd ./ckanutils
                     virtualenv .env
                     source .env/bin/activate
                     pip install -e .
@@ -71,9 +71,9 @@ tests           .. code-block:: bash
                     python setup.py test
 ==============  ==========================================================
 
-.. _Documentation: http://ckan-utils.readthedocs.org/en/latest/
-`Docs <http://ckan-utils.rtfd.org>`_
-`Changelog <http://ckan-utils.readthedocs.org/en/latest/history.html>`_
+.. _Documentation: http://ckanutils.readthedocs.org/en/latest/
+`Docs <http://ckanutils.rtfd.org>`_
+`Changelog <http://ckanutils.readthedocs.org/en/latest/history.html>`_
 
 Requirements
 ------------
@@ -94,11 +94,11 @@ Installation
 
 Install CKAN Utils using either pip (recommended)
 
-	sudo pip install ckan-utils
+	sudo pip install ckanutils
 
 or easy_install
 
-	sudo easy_install ckan-utils
+	sudo easy_install ckanutils
 
 
 LICENSE

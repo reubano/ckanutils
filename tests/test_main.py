@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-"""
-    app.tests.test_site
-    ~~~~~~~~~~~~~~
+# vim: sw=4:ts=4:expandtab
 
-    Provides unit tests for the website.
 """
+tests.test_main
+~~~~~~~~~~~~~~~
+
+Provides unit tests for the website.
+"""
+
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
 
 import nose.tools as nt
-
-from . import stderr
-from pprint import pprint
 
 
 def setup_module():

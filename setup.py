@@ -3,7 +3,7 @@
 
 import sys
 import re
-import ckan-utils
+import ckanutils
 
 from os import system, path as p
 
@@ -49,7 +49,7 @@ if sys.argv[-1] == 'publish':
     sys.exit()
 
 # if sys.argv[-1] == 'info':
-#     for k, v in ckan-utils.items():
+#     for k, v in ckanutils.items():
 #         print('%s: %s' % (k, v))
 
 #     sys.exit()
@@ -59,7 +59,7 @@ requirements += ['argparse'] if sys.version_info < (2, 7) else []
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
 history = read('HISTORY.rst').replace('.. :changelog:', '')
-license = ckan-utils.__license__
+license = ckanutils.__license__
 classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
 
 # [metadata]
@@ -87,13 +87,13 @@ classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
 # resources =
 
 setup(
-    name=ckan-utils.__title__,
-    version=ckan-utils.__version__,
-    description=ckan-utils.__description__,
+    name=ckanutils.__title__,
+    version=ckanutils.__version__,
+    description=ckanutils.__description__,
     long_description=readme + '\n\n' + history,
-    author=ckan-utils.__author__,
-    author_email=ckan-utils.__email__,
-    url='https://github.com/reubano/ckan-utils',
+    author=ckanutils.__author__,
+    author_email=ckanutils.__email__,
+    url='https://github.com/reubano/ckanutils',
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
     install_requires=requirements,
@@ -101,7 +101,7 @@ setup(
     tests_require=['nose', 'scripttest'],
     license=license,
     zip_safe=False,
-    keywords=ckan-utils.__title__,
+    keywords=ckanutils.__title__,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: %s License (%s)' % (classifier[license], license),
@@ -117,5 +117,5 @@ setup(
         'Operating System :: POSIX',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
-    scripts=[p.join('bin', ckan-utils)],
+    scripts=[p.join('bin', ckanutils)],
 )

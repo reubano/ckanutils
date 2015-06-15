@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
-"""
-    ckan-utils.tests
-    ~~~~~~~~~~~~~~~~
+# vim: sw=4:ts=4:expandtab
 
-    Provides application unit tests
+"""
+tests
+~~~~~
+
+Provides application unit tests
 """
 
-from sys import stderr
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
 
 initialized = False
 

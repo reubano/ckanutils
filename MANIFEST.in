@@ -1,4 +1,4 @@
-recursive-include ckan-utils/tests *
+recursive-include ckanutils/tests *
 include AUTHORS.rst
 include CONTRIBUTING.rst
 include TODO.rst

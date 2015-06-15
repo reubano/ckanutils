@@ -3,6 +3,10 @@
 
 """ A script to manage development tasks """
 
+from __future__ import (
+    absolute_import, division, print_function, with_statement,
+    unicode_literals)
+
 from os import path as p
 from manager import Manager
 from subprocess import call
@@ -21,13 +25,13 @@ def clean():
 @manager.command
 def check():
     """Check staged changes for lint errors"""
-    return call(p.join(_basedir, 'helpers', 'check-stage'), shell=True)
+    call(p.join(_basedir, 'helpers', 'check-stage'), shell=True)
 
 
 @manager.command
 def lint():
     """Check style with flake8"""
-    return call('flake8 ckan-utils test', shell=True)
+    call('flake8 ckanutils tests', shell=True)
 
 
 @manager.command
@@ -46,25 +50,25 @@ def require():
 @manager.command
 def test():
     """Run nose and script tests"""
-    return call(p.join(_basedir, 'helpers', 'test'), shell=True)
+    call(p.join(_basedir, 'helpers', 'test'), shell=True)
 
 
 @manager.command
 def release():
     """Package and upload a release"""
-    return call(p.join(_basedir, 'helpers', 'release'), shell=True)
+    call(p.join(_basedir, 'helpers', 'release'), shell=True)
 
 
 @manager.command
 def sdist():
     """Create a source distribution package"""
-    return call(p.join(_basedir, 'helpers', 'sdist'), shell=True)
+    call(p.join(_basedir, 'helpers', 'sdist'), shell=True)
 
 
 @manager.command
 def wheel():
     """Create a wheel package"""
-    return call(p.join(_basedir, 'helpers', 'wheel'), shell=True)
+    call(p.join(_basedir, 'helpers', 'wheel'), shell=True)
 
 
 if __name__ == '__main__':
