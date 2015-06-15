@@ -23,7 +23,7 @@ from __future__ import (
 import requests
 import ckanapi
 
-from os import environ
+from os import environ, path as p
 from . import utils
 
 CKAN_KEYS = ['hash_table_id', 'remote', 'api_key', 'ua', 'force', 'quiet']
@@ -303,10 +303,15 @@ class CKAN(object):
             # Keep exception message consistent with the others
             raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
 
+        url = resource['url']
+
         if self.verbose:
             print('Downloading resource %s...' % resource_id)
 
+        if p.isdir(filepath):
+            filepath = p.join(filepath, p.basename(url))
+
         headers = {'User-Agent': user_agent}
-        r = requests.get(resource['url'], stream=True, headers=headers)
+        r = requests.get(url, stream=True, headers=headers)
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)

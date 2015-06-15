@@ -11,8 +11,9 @@ from __future__ import (
 import traceback
 import sys
 
-from os import unlink, environ, path as p
+from os import getcwd, unlink, environ, path as p
 from manager import Manager
+from xattr import xattr
 from . import utils
 from . import api
 
@@ -25,10 +26,15 @@ CHUNKSIZE_BYTES = 2 ** 20
 def update_resource(ckan, resource_id, filepath, **kwargs):
     chunk_rows = kwargs.get('chunksize_rows')
     primary_key = kwargs.get('primary_key')
+    content_type = kwargs.get('content-type')
     method = 'upsert' if primary_key else 'insert'
     create_keys = ['aliases', 'primary_key', 'indexes']
 
-    extension = p.splitext(filepath)[1].split('.')[1]
+    try:
+        extension = p.splitext(filepath)[1].split('.')[1]
+    except IndexError:
+        extension = content_type.split('/')[1]
+
     switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
     parser = getattr(utils, switch.get(extension))
     records = iter(parser(filepath, encoding=kwargs.get('encoding')))
@@ -122,6 +128,7 @@ def update(resource_id, **kwargs):
             print('`hash_table_id` not set. Updating datastore...')
 
         kwargs['encoding'] = r.encoding
+        kwargs['content-type'] = r.headers['content-type']
         update_resource(ckan, resource_id, filepath, **kwargs)
 
         if ckan.hash_table_id:
@@ -133,6 +140,57 @@ def update(resource_id, **kwargs):
     finally:
         print('Removing tempfile...')
         unlink(filepath)
+
+
+@manager.arg(
+    'source', help='the source file path', nargs='?', default=sys.stdin)
+@manager.arg(
+    'resource_id', 'R', help='the resource id (default: source file name)')
+@manager.arg(
+    'encoding', 'e', help=("the file encoding (read from the file's extended "
+    'attributes if uploading a file downloaded with `fs.fetch` on Mac or'
+    ' Linux'), default='utf-8')
+@manager.arg(
+    'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
+    api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
+@manager.arg(
+    'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
+    api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
+@manager.arg(
+    'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
+    default=environ.get(api.UA_ENV))
+@manager.arg(
+    'chunksize_rows', 'c', help='number of rows to write at a time',
+    type=int, default=CHUNKSIZE_ROWS)
+@manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
+@manager.arg(
+    'quiet', 'q', help='suppress debug statements', type=bool, default=False)
+@manager.command(namespace='ds')
+def upload(source, **kwargs):
+    """Upload a file to a datastore table"""
+    verbose = not kwargs.get('quiet')
+    def_resource_id = p.splitext(p.basename(source))[0]
+    resource_id = kwargs.pop('resource_id', def_resource_id)
+    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+
+    if verbose:
+        print(
+            'Uploading %s to datastore resource %s...' % (source, resource_id))
+
+    # read encoding from extended attributes
+    x = xattr(source)
+    kwargs['encoding'] = x.get('com.ckanutils.encoding') or kwargs['encoding']
+
+    if verbose:
+        print('Using encoding %s' % kwargs['encoding'])
+
+    try:
+        ckan = api.CKAN(**ckan_kwargs)
+        update_resource(ckan, resource_id, source, **kwargs)
+    except Exception as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
 
 
 @manager.arg(
@@ -157,6 +215,56 @@ def delete(resource_id, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         ckan.delete_table(resource_id, filters=kwargs.get('filters'))
+    except Exception as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
+
+
+@manager.arg(
+    'resource_id', help='the resource id', nargs='?', default=sys.stdin)
+@manager.arg(
+    'destination', 'd', help='the destination folder or file path',
+    default=getcwd())
+@manager.arg(
+    'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
+    api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
+@manager.arg(
+    'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
+    api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
+@manager.arg(
+    'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
+    default=environ.get(api.UA_ENV))
+@manager.arg(
+    'chunksize_rows', 'c', help='number of rows to write at a time',
+    type=int, default=CHUNKSIZE_ROWS)
+@manager.arg(
+    'chunksize_bytes', 'C', help='number of bytes to read/write at a time',
+    type=int, default=CHUNKSIZE_BYTES)
+@manager.arg(
+    'quiet', 'q', help='suppress debug statements', type=bool, default=False)
+@manager.command(namespace='fs')
+def fetch(resource_id, **kwargs):
+    """Download a filestore resource"""
+    verbose = not kwargs.get('quiet')
+    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    fetch_kwargs = {
+        'filepath': kwargs.get('destination'),
+        'chunksize': kwargs.get('chunksize_bytes')
+    }
+
+    try:
+        ckan = api.CKAN(**ckan_kwargs)
+        r, filepath = ckan.fetch_resource(resource_id, **fetch_kwargs)
+
+        # save encoding to extended attributes
+        x = xattr(filepath)
+
+        if verbose:
+            print('saving encoding %s to extended attributes') % r.encoding
+
+        x['com.ckanutils.encoding'] = r.encoding
+        print(filepath)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
