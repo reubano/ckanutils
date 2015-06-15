@@ -120,8 +120,8 @@ class CKAN(object):
             NotFound: If unable to find resource.
 
         Examples:
-        >>> CKAN().create_table('rid', fields=[{'id': 'field', 'type': \
-'text'}])
+        >>> CKAN(quiet=True).create_table('rid', fields=[{'id': 'field', \
+'type': 'text'}])
         Traceback (most recent call last):
         NotFound: Resource "rid" was not found.
         """
@@ -161,7 +161,7 @@ class CKAN(object):
             ValidationError: If unable to validate user on ckan site.
 
         Examples:
-            >>> CKAN().delete_table('rid')
+            >>> CKAN(quiet=True).delete_table('rid')
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
@@ -291,7 +291,7 @@ class CKAN(object):
             NotFound: If unable to find the resource.
 
         Examples:
-            >>> CKAN().fetch_resource('rid')
+            >>> CKAN(quiet=True).fetch_resource('rid')
             Traceback (most recent call last):
             NotFound: Resource "rid" was not found.
         """

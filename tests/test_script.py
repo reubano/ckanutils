@@ -27,27 +27,30 @@ def main(verbose=False):
     if verbose:
         print(result.stdout)
 
-    assert result.stdout.split('\n')[0] == 'usage: ckanny <command> [<args>]'
+    usage = 'usage: ckanny [<namespace>.]<command> [<args>]'
+    assert result.stdout.split('\n')[0] == usage
     print('\nScripttest: #%i ... ok' % test_num)
     test_num += 1
 
     # Test dsdelete usage
-    result = env.run('%s dsdelete --help' % script)
+    result = env.run('%s ds.delete --help' % script)
 
     if verbose:
         print(result.stdout)
 
-    assert ' '.join(result.stdout.split(' ')[:3]) == 'usage: ckanny [-h]'
+    usage = 'usage: %s ds.delete\n' % script
+    assert ' '.join(result.stdout.split(' ')[:3]) == usage
     print('Scripttest: #%i ... ok' % test_num)
     test_num += 1
 
     # Test dsupdate usage
-    result = env.run('%s dsupdate --help' % script)
+    result = env.run('%s ds.update --help' % script)
 
     if verbose:
         print(result.stdout)
 
-    assert ' '.join(result.stdout.split(' ')[:3]) == 'usage: ckanny [-h]'
+    usage = 'usage: %s ds.update\n' % script
+    assert ' '.join(result.stdout.split(' ')[:3]) == usage
     print('Scripttest: #%i ... ok' % test_num)
     test_num += 1
 
