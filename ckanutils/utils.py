@@ -405,8 +405,8 @@ def hash_file(filepath, hasher='sha1', chunksize=0):
     Args:
         filepath (str): The path of the file to write to.
         hasher (str): The hashlib hashing algorithm to use.
-        chunksize (Optional[int]): Number of bytes to write at a time (defaults
-            to 0, i.e., all).
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            0, i.e., all).
 
     Returns:
         str: File hash.

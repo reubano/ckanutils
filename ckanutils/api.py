@@ -43,7 +43,7 @@ class CKAN(object):
         quiet (bool): Suppress debug statements.
         address (str): CKAN url.
         hash_table_id (str): The datastore hash table resource id.
-        keys List([str]):
+        keys (List[str]):
     """
 
     def __init__(self, **kwargs):
@@ -130,7 +130,7 @@ class CKAN(object):
         kwargs['fields'] = fields
 
         if self.verbose:
-            print('Creating datastore table for resource %s...' % resource_id)
+            print('Creating table for datastore resource %s...' % resource_id)
 
         try:
             return self.datastore_create(**kwargs)
@@ -155,7 +155,7 @@ class CKAN(object):
                 dependent views.
 
         Returns:
-            dict: Original filters sent.
+            dict: Original filters sent if table was found, `None` otherwise.
 
         Raises:
             ValidationError: If unable to validate user on ckan site.
@@ -167,7 +167,7 @@ class CKAN(object):
         kwargs['resource_id'] = resource_id
 
         if self.verbose:
-            print('Deleting datastore table for resource %s...' % resource_id)
+            print('Deleting table for datastore resource %s...' % resource_id)
 
         try:
             result = self.datastore_delete(**kwargs)
@@ -284,7 +284,7 @@ class CKAN(object):
             user_agent (str): The user agent.
 
         Returns:
-            obj: requests.Response object.
+            Tuple(obj, str): Tuple of (requests.Response object, filepath).
 
         Raises:
             NotFound: If unable to find the resource.
@@ -300,6 +300,7 @@ class CKAN(object):
         try:
             resource = self.resource_show(id=resource_id)
         except ckanapi.NotFound:
+            # Keep exception message consistent with the others
             raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
 
         if self.verbose:
