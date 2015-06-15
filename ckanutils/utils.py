@@ -398,7 +398,7 @@ def chunk(iterable, chunksize=0, start=0, stop=None):
     return chunked
 
 
-def hash_file(filepath, hasher='sha1', chunksize=0):
+def hash_file(filepath, hasher='sha1', chunksize=0, verbose=False):
     """Hashes a file.
     http://stackoverflow.com/a/1131255/408556
 
@@ -407,6 +407,7 @@ def hash_file(filepath, hasher='sha1', chunksize=0):
         hasher (str): The hashlib hashing algorithm to use.
         chunksize (Optional[int]): Number of bytes to write at a time (default:
             0, i.e., all).
+        verbose (Optional[bool]): Print debug statements (default: False).
 
     Returns:
         str: File hash.
@@ -431,4 +432,9 @@ def hash_file(filepath, hasher='sha1', chunksize=0):
         else:
             hasher.update(f.read())
 
-    return hasher.hexdigest()
+    file_hash = hasher.hexdigest()
+
+    if verbose:
+        print('File %s hash is %s.' % (filepath, file_hash))
+
+    return file_hash
