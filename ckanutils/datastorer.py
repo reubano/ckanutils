@@ -64,28 +64,34 @@ def ver():
     print('v%s' % version)
 
 
-@manager.arg('resource_id', help='the resource id')
-@manager.arg('remote', 'r', help=('the remote ckan url (uses %s ENV if '
-    'available)' % api.REMOTE_ENV), default=environ.get(api.REMOTE_ENV))
-@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
-    api.API_KEY_ENV), default=environ.get(api.API_KEY_ENV))
 @manager.arg(
-    'hash_table_id', 'H', help=('the hash table resource id (uses %s ENV if '
+    'resource_id', help='the resource id', nargs='?', default=sys.stdin)
+@manager.arg(
+    'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
+    api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
+@manager.arg(
+    'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
+    api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
+@manager.arg(
+    'hash_table_id', 'H', help=('the hash table resource id (uses `%s` ENV if '
     'available)' % api.HASH_TABLE_ENV), default=environ.get(api.HASH_TABLE_ENV))
-@manager.arg('ua', 'u', help=('the user agent (uses %s ENV if '
-    'available)' % api.UA_ENV), default=environ.get(api.UA_ENV))
-@manager.arg('chunksize_rows', 'c', help='number of rows to write at a time',
+@manager.arg(
+    'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
+    default=environ.get(api.UA_ENV))
+@manager.arg(
+    'chunksize_rows', 'c', help='number of rows to write at a time',
     type=int, default=CHUNKSIZE_ROWS)
-@manager.arg('chunksize_bytes', 'C', help=('number of bytes to read/write at a'
-    ' time'), type=int, default=CHUNKSIZE_BYTES)
+@manager.arg(
+    'chunksize_bytes', 'C', help='number of bytes to read/write at a time',
+    type=int, default=CHUNKSIZE_BYTES)
 @manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.arg(
     'force', 'f', help="update resource even if it hasn't changed.",
     type=bool, default=False)
-@manager.command
-def dsupdate(resource_id, **kwargs):
+@manager.command(namespace='ds')
+def update(resource_id, **kwargs):
     """Update a datastore table"""
     verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
@@ -129,17 +135,22 @@ def dsupdate(resource_id, **kwargs):
         unlink(filepath)
 
 
-@manager.arg('resource_id', help='the resource id')
-@manager.arg('remote', 'r', help='the remote ckan url')
-@manager.arg('api_key', 'k', help='the api key (uses %s ENV if available)' % (
-    api.API_KEY_ENV), default=environ.get(api.API_KEY_ENV))
-@manager.arg('ua', 'u', help='the user agent',
-    default=api.DEF_USER_AGENT)
+@manager.arg(
+    'resource_id', help='the resource id', nargs='?', default=sys.stdin)
+@manager.arg(
+    'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
+    api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
+@manager.arg(
+    'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
+    api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
+@manager.arg(
+    'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
+    default=environ.get(api.UA_ENV))
 @manager.arg(
     'filters', 'f', help=('the filters to apply before deleting, e.g., {"name"'
     ': "fred"}'))
-@manager.command
-def dsdelete(resource_id, **kwargs):
+@manager.command(namespace='ds')
+def delete(resource_id, **kwargs):
     """Delete a datastore table"""
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
 
