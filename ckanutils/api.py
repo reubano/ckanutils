@@ -175,7 +175,8 @@ class CKAN(object):
             result = None
 
             if self.verbose:
-                print("Can't delete, datastore resource %s. Table not found." % resource_id)
+                print("Can't delete, datastore resource %s." % resource_id)
+                print('Table not found.')
 
         return result
 

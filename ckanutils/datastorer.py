@@ -23,6 +23,22 @@ CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
 
 
+def get_message(unchanged, force, hash_table_id):
+    needs_update = not unchanged
+
+    if unchanged and not force:
+        message = 'No new data found. Not updating datastore.'
+    elif unchanged and force:
+        message = 'No new data found, but update forced.'
+        message += ' Updating datastore...'
+    elif needs_update and hash_table_id:
+        message = 'New data found. Updating datastore...'
+    elif not hash_table_id:
+        message = '`hash_table_id` not set. Updating datastore...'
+
+    return message
+
+
 def update_resource(ckan, resource_id, filepath, **kwargs):
     chunk_rows = kwargs.get('chunksize_rows')
     primary_key = kwargs.get('primary_key')
@@ -103,35 +119,31 @@ def update(resource_id, **kwargs):
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.get('force')
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
 
-        if ckan.hash_table_id and not force:
+        if ckan.hash_table_id:
             old_hash = ckan.get_hash(resource_id)
-            hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
             new_hash = utils.hash_file(filepath, **hash_kwargs)
-            doesnt_need_update = new_hash == old_hash
-        elif force:
-            doesnt_need_update = False
+            unchanged = new_hash == old_hash
+        else:
+            unchanged = None
 
-        if ckan.hash_table_id and doesnt_need_update and not force:
-            if verbose:
-                print('No new data found. Not updating datastore.')
+        if verbose:
+            print(get_message(unchanged, force, ckan.hash_table_id))
+
+        if unchanged and not force:
             sys.exit(0)
-        elif force and verbose:
-            print('Hashes not checked due to forced update. Updating datastore...')
-        elif ckan.hash_table_id and verbose:
-            print('New data found. Updating datastore...')
-        elif verbose:
-            print('`hash_table_id` not set. Updating datastore...')
 
         kwargs['encoding'] = r.encoding
         kwargs['content-type'] = r.headers['content-type']
         update_resource(ckan, resource_id, filepath, **kwargs)
+        needs_update = not unchanged
 
-        if ckan.hash_table_id:
+        if needs_update and ckan.hash_table_id:
             update_hash_table(ckan, resource_id, new_hash)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))

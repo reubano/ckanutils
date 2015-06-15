@@ -8,13 +8,14 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-from sys import exit, stderr
+from sys import exit
 from os import path as p
 from scripttest import TestFileEnvironment
 from ckanutils import __version__ as version
 
 parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
 script = p.join(parent_dir, 'bin', 'ckanny')
+
 
 def main(verbose=False):
     env = TestFileEnvironment('.scripttest')
