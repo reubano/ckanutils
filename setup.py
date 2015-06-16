@@ -56,35 +56,12 @@ if sys.argv[-1] == 'publish':
 
 requirements = parse_requirements('requirements.txt')
 requirements += ['argparse'] if sys.version_info < (2, 7) else []
+dev_requirements = parse_requirements('dev-requirements.txt')
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
 changes = read('CHANGES.rst').replace('.. :changelog:', '')
 license = ckanutils.__license__
 classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
-
-# [metadata]
-# classifier = Development Status :: 1 - Planning
-# classifier = Development Status :: 2 - Pre-Alpha
-# classifier = Development Status :: 3 - Alpha
-# classifier = Development Status :: 4 - Beta
-# classifier = Development Status :: 5 - Production/Stable
-# classifier = Development Status :: 6 - Mature
-# classifier = Development Status :: 7 - Inactive
-# classifier = License :: OSI Approved :: GNU General Public License (GPL)
-# classifier = License :: OSI Approved :: The MIT License (MIT)
-# classifier = License :: OSI Approved :: The BSD License (BSD)
-# classifier = Environment :: Console
-# classifier = Environment :: Web Environment
-# classifier = Intended Audience :: End Users/Desktop
-# classifier = Intended Audience :: Developers
-# classifier = Intended Audience :: System Administrators
-# classifier = Operating System :: MacOS :: MacOS X
-# classifier = Operating System :: Microsoft :: Windows
-# classifier = Operating System :: POSIX
-#
-# [files]
-# packages = someprogram
-# resources =
 
 setup(
     name=ckanutils.__title__,
@@ -97,8 +74,8 @@ setup(
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
     install_requires=requirements,
-    dependency_links=dependencies,
-    tests_require=['nose', 'scripttest'],
+    # dependency_links=dependencies,
+    tests_require=dev_requirements,
     license=license,
     zip_safe=False,
     keywords=ckanutils.__title__,
@@ -107,14 +84,13 @@ setup(
         'License :: OSI Approved :: %s License (%s)' % (classifier[license], license),
         'Natural Language :: English',
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Environment :: Console',
         'Intended Audience :: Developers',
+        'Intended Audience :: End Users/Desktop',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX',
+        'Operating System :: POSIX :: Linux',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
     scripts=[p.join('bin', ckanutils)],
