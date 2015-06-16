@@ -50,6 +50,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
 
     try:
         extension = p.splitext(filepath)[1].split('.')[1]
+    # no file extension given, e.g., a tempfile
     except IndexError:
         extension = content_type.split('/')[1]
 
