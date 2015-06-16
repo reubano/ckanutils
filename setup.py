@@ -58,7 +58,7 @@ requirements = parse_requirements('requirements.txt')
 requirements += ['argparse'] if sys.version_info < (2, 7) else []
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
-history = read('HISTORY.rst').replace('.. :changelog:', '')
+changes = read('CHANGES.rst').replace('.. :changelog:', '')
 license = ckanutils.__license__
 classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
 
@@ -90,7 +90,7 @@ setup(
     name=ckanutils.__title__,
     version=ckanutils.__version__,
     description=ckanutils.__description__,
-    long_description=readme + '\n\n' + history,
+    long_description=readme + '\n\n' + changes,
     author=ckanutils.__author__,
     author_email=ckanutils.__email__,
     url='https://github.com/reubano/ckanutils',

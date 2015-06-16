@@ -1,4 +1,4 @@
-.PHONY: help clean clean-pyc clean-build check-stage pipme require list test tox coverage docs release sdist wheel
+.PHONY: help clean clean-pyc clean-build check-stage pipme require lint test release sdist wheel
 
 help:
 	@echo "clean - remove all artifacts"
@@ -14,14 +14,33 @@ help:
 	@echo "wheel - create a wheel package"
 
 clean: clean-build clean-pyc
-clean-build: helpers/clean-build
-clean-pyc: helpers/clean-pyc
-clean: clean-build clean-pyc
-check-stage: helpers/check-stage
-pipme: pip install -r requirements.txt
-require: pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt
-lint: flake8 ckanutils test
-test: helpers/test
-release: helpers/release
-sdist: helpers/sdist
-wheel: helpers/wheel
+
+clean-build:
+	helpers/clean-build
+
+clean-pyc:
+	helpers/clean-pyc
+
+check-stage:
+	helpers/check-stage
+
+pipme:
+	pip install -r requirements.txt
+
+require:
+	pip freeze -l | grep -vxFf dev-requirements.txt > requirements.txt
+
+lint:
+	flake8 ckanutils tests
+
+test:
+	helpers/test
+
+release:
+	helpers/release
+
+sdist:
+	helpers/sdist
+
+wheel:
+	helpers/wheel
