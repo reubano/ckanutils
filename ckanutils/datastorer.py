@@ -280,7 +280,7 @@ def fetch(resource_id, **kwargs):
         x = xattr(filepath)
 
         if verbose and r.encoding:
-            print('saving encoding %s to extended attributes') % r.encoding
+            print('saving encoding %s to extended attributes' % r.encoding)
 
         if r.encoding:
             x['com.ckanutils.encoding'] = r.encoding

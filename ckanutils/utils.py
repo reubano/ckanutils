@@ -365,7 +365,12 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
             for chunk in r.iter_content(chunksize):
                 f.write(chunk)
                 progress += chunksize
-                bars = min(int(bar_len * progress / length), bar_len)
+
+                if length:
+                    bars = min(int(bar_len * progress / length), bar_len)
+                else:
+                    bars = bar_len
+
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
         else:
