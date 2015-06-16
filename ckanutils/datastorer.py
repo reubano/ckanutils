@@ -126,7 +126,7 @@ def update(resource_id, **kwargs):
     """Update a datastore table based on the current filestore resource"""
     verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
-    force = kwargs.get('force')
+    force = kwargs.pop('force')
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
 

@@ -175,9 +175,14 @@ class CKAN(object):
             result = None
 
             if self.verbose:
+                print("Can't delete. Datastore table not found.")
+        except ckanapi.ValidationError as err:
+            if 'read-only' in err.error_dict:
                 print(
-                    "Can't delete. Datastore resource %s table not found." %
-                    resource_id)
+                    "Can't delete. Datastore table is read only table. Set "
+                    "'force' to True and try again.")
+
+                result = None
 
         return result
 
