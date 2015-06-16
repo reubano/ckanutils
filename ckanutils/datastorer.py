@@ -50,6 +50,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
 
     try:
         extension = p.splitext(filepath)[1].split('.')[1]
+    # no file extension given, e.g., a tempfile
     except IndexError:
         extension = content_type.split('/')[1]
 
@@ -188,7 +189,7 @@ def upload(source, **kwargs):
     """Upload a file to a datastore table"""
     verbose = not kwargs.get('quiet')
     def_resource_id = p.splitext(p.basename(source))[0]
-    resource_id = kwargs.pop('resource_id', def_resource_id)
+    resource_id = kwargs.pop('resource_id', None) or def_resource_id
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
 
     if verbose:
@@ -280,7 +281,7 @@ def fetch(resource_id, **kwargs):
         x = xattr(filepath)
 
         if verbose and r.encoding:
-            print('saving encoding %s to extended attributes') % r.encoding
+            print('saving encoding %s to extended attributes' % r.encoding)
 
         if r.encoding:
             x['com.ckanutils.encoding'] = r.encoding

@@ -318,7 +318,12 @@ class CKAN(object):
             print('Downloading resource %s...' % resource_id)
 
         if p.isdir(filepath):
-            filepath = p.join(filepath, p.basename(url))
+            basename = p.basename(url)
+
+            if basename == 'export?format=csv':
+                basename = '%s.csv' % resource_id
+
+            filepath = p.join(filepath, basename)
 
         headers = {'User-Agent': user_agent}
         r = requests.get(url, stream=True, headers=headers)
