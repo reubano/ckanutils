@@ -2,14 +2,14 @@
 
 ## Introduction
 
-CKAN Utils is a [Python library](##library) and [command line interface](##cli) for interacting with remote and local [CKAN](http://ckan.org/) instances. It uses [ckanapi](https://github.com/ckan/ckanapi) under the hood, and is essentially a high level wrapper for it.
+CKAN Utils is a [Python library](#library) and [command line interface](#cli) for interacting with remote and local [CKAN](http://ckan.org/) instances. It uses [ckanapi](https://github.com/ckan/ckanapi) under the hood, and is essentially a high level wrapper for it.
 
 With CKAN Utils, you can
 
 - Download a CKAN resource
 - Parse structured CSV/Excel files and push them into a CKAN DataStore
 
-If you have configured a [hash_table](#hash_table) in your CKAN instance, CKAN Utils will compute the hash of a file and only update the datastore if the file has changed.
+If you have configured a [hash_table](#hash-table) in your CKAN instance, CKAN Utils will compute the hash of a file and only update the datastore if the file has changed.
 
 This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
 
@@ -32,7 +32,7 @@ Proposer requires the following in order to run properly:
 
 ## CLI
 
-CKAN Utils comes with a built in command line interface `ckanny`. 
+CKAN Utils comes with a built in command line interface `ckanny`.
 
 ### Usage
 
@@ -56,12 +56,12 @@ optional arguments:
 
 available commands:
   ver                      Show ckanny version
-  
+
   [ds]
     delete                 Delete a datastore table
     update                 Update a datastore table based on the current filestore resource
     upload                 Upload a file to a datastore table
-  
+
   [fs]
     fetch                  Download a filestore resource
 ```
@@ -80,9 +80,9 @@ available commands:
 
 
 ```bash
-usage: bin/ckanny fs.fetch [-h] [-q] [-C CHUNKSIZE_BYTES] [-c CHUNKSIZE_ROWS]
-                           [-u UA] [-k API_KEY] [-r REMOTE] [-d DESTINATION]
-                           [resource_id]
+usage: ckanny fs.fetch [-h] [-q] [-C CHUNKSIZE_BYTES] [-c CHUNKSIZE_ROWS]
+                       [-u UA] [-k API_KEY] [-r REMOTE] [-d DESTINATION]
+                       [resource_id]
 
 Download a filestore resource
 
@@ -126,6 +126,8 @@ r, filepath = ckan.fetch_resource('36f33846-cb43-438e-95fd-f518104a32ed')
 print(r.encoding)
 ```
 
+*Fetch a local resource*
+
 ```python
 kwargs = {'filepath': '~/test.csv', 'api_key': 'mykey', 'remote': None}
 ckan = api.CKAN(**kwargs)
@@ -152,11 +154,12 @@ datastore_id|hash
 ------------|----
 |
 
-Get the table's `resource_id` and use it to set the `CKAN_HASH_TABLE_ID` environment variable, in the command line for the `--hash-table-id` option, or in a Python file as the `hash_table_id` keyword argument to `api.CKAN`.
+Get the table's `resource_id` and use it to set the `CKAN_HASH_TABLE_ID` environment variable.
+Optionally, you can use the `resource_id` in the command line as the `--hash-table-id` option, or in a Python file as the `hash_table_id` keyword argument to `api.CKAN`.
 
 ## Scripts
 
-CKAN Utils comes with a built in task manager `manage.py` and a `Makefile`. 
+CKAN Utils comes with a built in task manager `manage.py` and a `Makefile`.
 
 ### Examples
 
