@@ -28,7 +28,13 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 
-from xlrd.xldate import xldate_as_datetime
+from dateutil.parser import parse
+from functools import partial
+from xlrd.xldate import xldate_as_datetime as xl2dt
+from xlrd import (
+    XL_CELL_DATE, XL_CELL_EMPTY, XL_CELL_NUMBER, XL_CELL_BOOLEAN,
+    XL_CELL_ERROR)
+
 from chardet.universaldetector import UniversalDetector
 from tempfile import NamedTemporaryFile
 from slugify import slugify
@@ -60,8 +66,8 @@ def _read_csv(f, encoding, names):
         encoding (str): File encoding.
         names (List[str]): The header names.
 
-    Returns:
-        List[dicts]: The csv rows.
+    Yields:
+        dict: A csv record.
 
     Examples:
         >>> from os import path as p
@@ -69,33 +75,31 @@ def _read_csv(f, encoding, names):
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
         >>> f = open(filepath, 'rU')
         >>> names = ['some_date', 'sparse_data', 'some_value', 'unicode_test']
-        >>> rows = _read_csv(f, 'utf-8', names)
-        >>> f.close()
-        >>> rows[2]['some_date']
+        >>> records = _read_csv(f, 'utf-8', names)
+        >>> it.islice(records, 2, 3).next()['some_date']
         u'01-Jan-15'
+        >>> f.close()
     """
     # Read data
     f.seek(0)
     reader = csv.DictReader(f, names, encoding=encoding)
 
     # Remove `None` keys
-    rows = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
+    records = (dict(it.ifilter(lambda x: x[0], r.iteritems())) for r in reader)
 
     # Remove empty rows
-    return [r for r in rows if any(v.strip() for v in r.values())]
+    for row in records:
+        if any(v.strip() for v in row.values()):
+            yield row
 
 
-def _sanitize_sheet(sheet, mode, date_format, from_fieldname=False):
-    """Formats numbers and date values (from xls/xslx file) as strings.
+def _sanitize_sheet(sheet, mode, date_format):
+    """Formats xlrd cell types (from xls/xslx file) as strings.
 
     Args:
         book (obj): `xlrd` workbook object.
         mode (str): `xlrd` workbook datemode property.
         date_format (str): `strftime()` date format.
-        from_fieldname (Optional[bool]): Interpret as date if 'date' is in
-            fieldname even if cell type isn't `date`. Also, convert cell type
-            `number` into text unless 'value' is in the fieldname
-            (default: False).
 
     Yields:
         Tuple[int, str]: A tuple of (row_number, value).
@@ -106,34 +110,115 @@ def _sanitize_sheet(sheet, mode, date_format, from_fieldname=False):
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
-        >>> dated = _sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
-        >>> it.islice(dated, 5, 6).next()
+        >>> sanitized = _sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
+        >>> it.islice(sanitized, 5, 6).next()
         (1, '1982-05-04')
     """
-    names = [n.lower() for n in sheet.row_values(0)]
+    switch = {
+        XL_CELL_DATE: lambda v: xl2dt(v, mode).strftime(date_format),
+        XL_CELL_EMPTY: lambda v: None,
+        XL_CELL_NUMBER: lambda v: unicode(v),
+        XL_CELL_BOOLEAN: lambda v: unicode(bool(v)),
+        XL_CELL_ERROR: lambda v: xlrd.error_text_from_code[v],
+    }
 
     for i in xrange(sheet.nrows):
-        row = it.izip(sheet.row_types(i), sheet.row_values(i))
-
-        for col, cell in enumerate(row):
-            ctype, value = cell
-
-            # if it's a date
-            if (ctype == 3) or (from_fieldname and 'date' in names[col]):
-                try:
-                    as_date = xldate_as_datetime(value, mode)
-                except ValueError:
-                    pass
-                else:
-                    value = as_date.strftime(date_format)
-            # if it's a number
-            elif (ctype == 2) and from_fieldname and 'value' not in names[col]:
-                value = str(value)
-
-            yield (i, value)
+        for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
+            yield (i, switch.get(ctype, lambda v: v)(value))
 
 
-def gen_fields(names):
+def make_float(value):
+    try:
+        value = float(value.replace(',', '')) if value.strip() else None
+    except AttributeError:
+        pass
+
+    return value
+
+
+def _make_date(value, date_format):
+    try:
+        if value and value.strip():
+            value = parse(value).strftime(date_format)
+
+        retry = False
+    # impossible date, e.g., 2/31/15
+    except ValueError:
+        retry = True
+    # unparseable date, e.g., Novmbr 4
+    except TypeError:
+        value = None
+        retry = False
+
+    return (value, retry)
+
+
+def make_date(value, date_format):
+    value, retry = _make_date(value, date_format)
+
+    # Fix impossible dates, e.g., 2/31/15
+    if retry:
+        bad_num = [x for x in ['29', '30', '31', '32'] if x in value][0]
+        possibilities = (value.replace(bad_num, x) for x in ['30', '29', '28'])
+
+        for p in possibilities:
+            value, retry = _make_date(p, date_format)
+
+            if retry:
+                continue
+            else:
+                break
+
+    return value
+
+
+def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
+    """Casts record entries based on field types.
+
+    Args:
+        records (List[dicts]): Record entries (`read_csv` output).
+        fields (List[dicts]): Field types (`gen_fields` output).
+        date_format (str): Date format passed to `strftime()` (default:
+            '%Y-%m-%d', i.e, 'YYYY-MM-DD').
+
+    Yields:
+        dict: The type casted record entry.
+
+    Examples:
+        >>> from os import path as p
+        >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+        >>> csv_filepath = p.join(parent_dir, 'data', 'test.csv')
+        >>> csv_records = read_csv(csv_filepath)
+        >>> csv_header = sorted(csv_records.next().keys())
+        >>> csv_fields = gen_fields(csv_header, True)
+        >>> csv_records.next()['some_date']
+        u'05/04/82'
+        >>> casted_csv_row = gen_type_cast(csv_records, csv_fields).next()
+        >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
+        >>>
+        >>> xls_filepath = p.join(parent_dir, 'data', 'test.xls')
+        >>> xls_records = read_xls(xls_filepath)
+        >>> xls_header = sorted(xls_records.next().keys())
+        >>> xls_fields = gen_fields(xls_header, True)
+        >>> xls_records.next()['some_date']
+        '1982-05-04'
+        >>> casted_xls_row = gen_type_cast(xls_records, xls_fields).next()
+        >>> casted_xls_values = [casted_xls_row[h] for h in xls_header]
+        >>>
+        >>> casted_csv_values == casted_xls_values
+        True
+        >>> casted_csv_values[0]
+        '2015-01-01'
+    """
+    make_date_p = partial(make_date, date_format=date_format)
+    switch = {'float': make_float, 'date': make_date_p, 'text': unicode}
+    field_types = {f['id']: f['type'] for f in fields}
+
+    for row in records:
+        yield {k: switch.get(field_types[k])(v) for k, v in row.items()}
+
+
+def gen_fields(names, type_cast=False):
     """Tries to determine field types based on field names.
 
     Args:
@@ -147,11 +232,9 @@ def gen_fields(names):
         {u'type': u'text', u'id': u'date'}
     """
     for name in names:
-        # You can't insert a empty string into a timestamp, so skip this step
-        # until a work-a-around is inplace to convert empty strings to `null`s
-        # if 'date' in name:
-        #     yield {'id': name, 'type': 'timestamp'}
-        if 'value' in name:
+        if type_cast and 'date' in name:
+            yield {'id': name, 'type': 'date'}
+        elif type_cast and 'value' in name:
             yield {'id': name, 'type': 'float'}
         else:
             yield {'id': name, 'type': 'text'}
@@ -203,8 +286,8 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
 
-    Returns:
-        List[dicts]: The csv rows.
+    Yields:
+        dict: A csv row.
 
     Raises:
         NotFound: If unable to the resource.
@@ -212,23 +295,22 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
     Examples:
         >>> from os import unlink, path as p
         >>> filepath = get_temp_filepath()
-        >>> read_csv(filepath)
+        >>> read_csv(filepath).next()
         Traceback (most recent call last):
         StopIteration
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
-        >>> rows = read_csv(filepath)
-        >>> len(rows)
-        4
-        >>> keys = sorted(rows[1].keys())
-        >>> keys
+        >>> records = read_csv(filepath)
+        >>> header = sorted(records.next().keys())
+        >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> [rows[1][k] for k in keys] == [u'05/04/82', u'234', \
-u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> row = records.next()
+        >>> [row[h] for h in header] == [ \
+u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
-        >>> [r['some_date'] for r in rows[1:]]
-        [u'05/04/82', u'01-Jan-15', u'December 31, 1995']
+        >>> [r['some_date'] for r in records]
+        [u'01-Jan-15', u'December 31, 1995']
     """
     with open(csv_filepath, mode) as f:
         encoding = kwargs.pop('encoding', ENCODING)
@@ -238,13 +320,14 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
         names = [slugify(n, separator='_') for n in header if n.strip()]
 
         try:
-            rows = _read_csv(f, encoding, names)
+            records = _read_csv(f, encoding, names)
         except UnicodeDecodeError:
             # Try to detect the encoding
             result = detect_encoding(f)
-            rows = _read_csv(f, result['encoding'], names)
+            records = _read_csv(f, result['encoding'], names)
 
-        return rows
+        for row in records:
+            yield row
 
 
 def read_xls(xls_filepath, **kwargs):
@@ -284,29 +367,27 @@ def read_xls(xls_filepath, **kwargs):
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> rows = list(read_xls(filepath))
-        >>> len(rows)
-        4
-        >>> keys = sorted(rows[1].keys())
-        >>> keys
+        >>> records = read_xls(filepath)
+        >>> header = sorted(records.next().keys())
+        >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> [rows[1][k] for k in keys] == ['1982-05-04', 234.0, \
-u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> row = records.next()
+        >>> [row[h] for h in header] == [ \
+'1982-05-04', 234.0, u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
-        >>> [r['some_date'] for r in rows[1:]]
-        ['1982-05-04', '2015-01-01', '1995-12-31']
+        >>> [r['some_date'] for r in records]
+        ['2015-01-01', '1995-12-31']
         >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
-        >>> rows = list(read_xls(filepath))
-        >>> len(rows)
-        4
-        >>> keys = sorted(rows[1].keys())
-        >>> keys
+        >>> records = read_xls(filepath)
+        >>> header = sorted(records.next().keys())
+        >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> [rows[1][k] for k in keys] == ['1982-05-04', 234.0, \
-u'Iñtërnâtiônàližætiøn', u'Ādam']
+        >>> row = records.next()
+        >>> [row[h] for h in header] == [ \
+'1982-05-04', 234.0, u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
-        >>> [r['some_date'] for r in rows[1:]]
-        ['1982-05-04', '2015-01-01', '1995-12-31']
+        >>> [r['some_date'] for r in records]
+        ['2015-01-01', '1995-12-31']
     """
     date_format = kwargs.get('date_format', '%Y-%m-%d')
 
@@ -324,9 +405,9 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
     names = [slugify(name, separator='_') for name in header if name.strip()]
 
     # Convert dates
-    dated = _sanitize_sheet(sheet, book.datemode, date_format, True)
+    sanitized = _sanitize_sheet(sheet, book.datemode, date_format)
 
-    for key, group in it.groupby(dated, lambda v: v[0]):
+    for key, group in it.groupby(sanitized, lambda v: v[0]):
         values = [g[1] for g in group]
 
         # Remove empty rows
