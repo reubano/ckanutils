@@ -68,14 +68,16 @@ def _read_csv(f, encoding, names):
     return [r for r in rows if any(v.strip() for v in r.values())]
 
 
-def _datize_sheet(sheet, mode, dformat, aggresive=False):
-    """Format date values (from xls/xslx file) as strings.
+def _sanitize_sheet(sheet, mode, dformat, from_fieldname=False):
+    """Format numbers and date values (from xls/xslx file) as strings.
 
     Args:
         book (obj): `xlrd` workbook object.
         mode (str): `xlrd` workbook datemode property.
         dformat (str): `strftime()` date format.
-        aggresive (Optional[bool]): Format as date if 'date' is in fieldname
+        from_fieldname (Optional[bool]): Interpret as date if 'date' is in
+            fieldname even if cell type isn't `date`. Also, convert cell type
+            `number` into text unless 'value' is in the fieldname
             (default: False).
 
     Yields:
@@ -87,7 +89,7 @@ def _datize_sheet(sheet, mode, dformat, aggresive=False):
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
-        >>> dated = _datize_sheet(sheet, book.datemode, '%B %d, %Y')
+        >>> dated = _sanitize_sheet(sheet, book.datemode, '%B %d, %Y')
         >>> it.islice(dated, 5, 6).next()
         (1, 'May 04, 1982')
     """
@@ -99,11 +101,15 @@ def _datize_sheet(sheet, mode, dformat, aggresive=False):
         for col, cell in enumerate(row):
             ctype, value = cell
 
-            if (ctype == 3) or (aggresive and 'date' in names[col]):
+            # if it's a date
+            if (ctype == 3) or (from_fieldname and 'date' in names[col]):
                 try:
                     value = xldate_as_datetime(value, mode).strftime(dformat)
                 except ValueError:
                     pass
+            # if it's a number
+            elif (ctype == 2) and from_fieldname and 'value' not in names[col]:
+                value = str(value)
 
             yield (i, value)
 
@@ -299,7 +305,7 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
     names = [slugify(name, separator='_') for name in header if name.strip()]
 
     # Convert dates
-    dated = _datize_sheet(sheet, book.datemode, date_format, True)
+    dated = _sanitize_sheet(sheet, book.datemode, date_format, True)
 
     for key, group in it.groupby(dated, lambda v: v[0]):
         values = [g[1] for g in group]
