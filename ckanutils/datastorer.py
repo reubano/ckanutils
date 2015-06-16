@@ -133,9 +133,7 @@ def update(resource_id, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-
-        if ckan.hash_table_id:
-            old_hash = ckan.get_hash(resource_id)
+        old_hash = ckan.get_hash(resource_id) if ckan.hash_table_id else None
 
         if old_hash:
             new_hash = utils.hash_file(filepath, **hash_kwargs)
@@ -154,7 +152,7 @@ def update(resource_id, **kwargs):
         update_resource(ckan, resource_id, filepath, **kwargs)
         needs_update = not unchanged
 
-        if needs_update and ckan.hash_table_id:
+        if needs_update and old_hash:
             update_hash_table(ckan, resource_id, new_hash)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
