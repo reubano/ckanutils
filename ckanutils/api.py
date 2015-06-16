@@ -35,7 +35,7 @@ UA_ENV = 'CKAN_USER_AGENT'
 
 
 class CKAN(object):
-    """This is a description of the class.
+    """Interacts with a CKAN instance.
 
     Attributes:
         force (bool): Force.
@@ -98,7 +98,7 @@ class CKAN(object):
         self.resource_show = ckan.action.resource_show
 
     def create_table(self, resource_id, fields, **kwargs):
-        """Create a datastore table.
+        """Creates a datastore table.
 
         Args:
             resource_id (str): The filestore resource id.
@@ -142,7 +142,7 @@ class CKAN(object):
                 raise
 
     def delete_table(self, resource_id, **kwargs):
-        """Delete a datastore table.
+        """Deletes a datastore table.
 
         Args:
             resource_id (str): The datastore resource id.
@@ -175,14 +175,19 @@ class CKAN(object):
             result = None
 
             if self.verbose:
+                print("Can't delete. Datastore table not found.")
+        except ckanapi.ValidationError as err:
+            if 'read-only' in err.error_dict:
                 print(
-                    "Can't delete. Datastore resource %s table not found." %
-                    resource_id)
+                    "Can't delete. Datastore table is read only table. Set "
+                    "'force' to True and try again.")
+
+                result = None
 
         return result
 
     def insert_records(self, resource_id, records, **kwargs):
-        """Insert records into a datastore table.
+        """Inserts records into a datastore table.
 
         Args:
             resource_id (str): The datastore resource id.
@@ -281,7 +286,7 @@ class CKAN(object):
         return resource_hash
 
     def fetch_resource(self, resource_id, **kwargs):
-        """Fetch a single resource from filestore.
+        """Fetches a single resource from filestore.
 
         Args:
             resource_id (str): The filestore resource id.
@@ -320,8 +325,8 @@ class CKAN(object):
         if p.isdir(filepath):
             basename = p.basename(url)
 
-            if basename == 'export?format=csv':
-                basename = '%s.csv' % resource_id
+            if basename.startswith('export?format='):
+                basename = '%s.%s' % (resource_id, basename.split('=')[1])
 
             filepath = p.join(filepath, basename)
 

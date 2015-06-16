@@ -69,7 +69,7 @@ def _read_csv(f, encoding, names):
 
 
 def _sanitize_sheet(sheet, mode, dformat, from_fieldname=False):
-    """Format numbers and date values (from xls/xslx file) as strings.
+    """Formats numbers and date values (from xls/xslx file) as strings.
 
     Args:
         book (obj): `xlrd` workbook object.
@@ -118,7 +118,7 @@ def gen_fields(names):
     """Tries to determine field types based on field names.
 
     Args:
-        names (List[str]): Field name.
+        names (List[str]): Field names.
 
     Yields:
         dict: The parsed field with type
