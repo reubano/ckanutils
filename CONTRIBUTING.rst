@@ -67,6 +67,7 @@ Ready to contribute? Here's how to set up `ckanutils` for local development.
     cd ckanutils/
     workon ckanutils
     python setup.py develop
+    pip install -r dev-requirements.txt
 
 4. Create a branch for local development::
 

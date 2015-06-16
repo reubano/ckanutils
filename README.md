@@ -161,6 +161,10 @@ Optionally, you can use the `resource_id` in the command line as the `--hash-tab
 
 CKAN Utils comes with a built in task manager `manage.py` and a `Makefile`.
 
+### Setup
+
+    pip install -r dev-requirements.txt
+
 ### Examples
 
 *Run python linter and noses tests*
