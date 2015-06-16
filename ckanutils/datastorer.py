@@ -24,7 +24,7 @@ CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
 
 
-def get_message(unchanged, force, hash_table_id):
+def get_message(unchanged, force, old_hash):
     needs_update = not unchanged
 
     if unchanged and not force:
@@ -32,10 +32,11 @@ def get_message(unchanged, force, hash_table_id):
     elif unchanged and force:
         message = 'No new data found, but update forced.'
         message += ' Updating datastore...'
-    elif needs_update and hash_table_id:
+    elif needs_update and old_hash:
         message = 'New data found. Updating datastore...'
-    elif not hash_table_id:
-        message = '`hash_table_id` not set. Updating datastore...'
+    elif not old_hash:
+        message = '`hash_table_id` not set or table not found.'
+        message += ' Updating datastore...'
 
     return message
 
@@ -135,13 +136,15 @@ def update(resource_id, **kwargs):
 
         if ckan.hash_table_id:
             old_hash = ckan.get_hash(resource_id)
+
+        if old_hash:
             new_hash = utils.hash_file(filepath, **hash_kwargs)
             unchanged = new_hash == old_hash
         else:
             unchanged = None
 
         if verbose:
-            print(get_message(unchanged, force, ckan.hash_table_id))
+            print(get_message(unchanged, force, old_hash))
 
         if unchanged and not force:
             sys.exit(0)
