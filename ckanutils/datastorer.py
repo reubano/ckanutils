@@ -44,7 +44,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     verbose = not kwargs.get('quiet')
     chunk_rows = kwargs.get('chunksize_rows')
     primary_key = kwargs.get('primary_key')
-    content_type = kwargs.get('content-type')
+    content_type = kwargs.get('content_type')
     method = 'upsert' if primary_key else 'insert'
     create_keys = ['aliases', 'primary_key', 'indexes']
 
@@ -62,7 +62,8 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     if verbose:
         print('Parsed fields:')
         pprint(fields)
-    create_kwargs = dict((k, v) for k, v in kwargs.items() if k in create_keys)
+
+    create_kwargs = {k: v for k, v in kwargs.items() if k in create_keys}
 
     if not primary_key:
         ckan.delete_table(resource_id)
@@ -125,7 +126,7 @@ def update(resource_id, **kwargs):
     verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.get('force')
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
 
     try:
@@ -146,7 +147,7 @@ def update(resource_id, **kwargs):
             sys.exit(0)
 
         kwargs['encoding'] = r.encoding
-        kwargs['content-type'] = r.headers['content-type']
+        kwargs['content_type'] = r.headers['content-type']
         update_resource(ckan, resource_id, filepath, **kwargs)
         needs_update = not unchanged
 
@@ -190,7 +191,7 @@ def upload(source, **kwargs):
     verbose = not kwargs.get('quiet')
     def_resource_id = p.splitext(p.basename(source))[0]
     resource_id = kwargs.pop('resource_id', None) or def_resource_id
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     if verbose:
         print(
@@ -233,7 +234,7 @@ def upload(source, **kwargs):
 @manager.command(namespace='ds')
 def delete(resource_id, **kwargs):
     """Delete a datastore table"""
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
@@ -267,7 +268,7 @@ def delete(resource_id, **kwargs):
 def fetch(resource_id, **kwargs):
     """Download a filestore resource"""
     verbose = not kwargs.get('quiet')
-    ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
+    ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     fetch_kwargs = {
         'filepath': kwargs.get('destination'),
         'chunksize': kwargs.get('chunksize_bytes')
