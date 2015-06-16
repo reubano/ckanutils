@@ -9,7 +9,7 @@ With CKAN Utils, you can
 - Download a CKAN resource
 - Parse structured CSV/Excel files and push them into a CKAN DataStore
 
-If you have configured a [hash_table](#hash-table) in your CKAN instance, CKAN Utils will compute the hash of a file and only update the datastore if the file has changed.
+If you have configured a [`hash_table_id`](#hash-table) in your CKAN instance, CKAN Utils will compute the hash of a file and only update the datastore if the file has changed.
 
 This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
 
