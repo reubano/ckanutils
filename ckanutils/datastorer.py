@@ -114,7 +114,7 @@ def ver():
     type=bool, default=False)
 @manager.command(namespace='ds')
 def update(resource_id, **kwargs):
-    """Update a datastore table"""
+    """Update a datastore table based on the current filestore resource"""
     verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.get('force')
