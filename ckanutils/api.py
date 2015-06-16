@@ -245,7 +245,9 @@ class CKAN(object):
             NotFound: If unable to find the hash table resource.
 
         Examples:
-            >>> CKAN(quiet=True).get_hash('rid')
+            >>> CKAN(hash_table_id='hid').get_hash('rid')
+            `hash_table_id` "hid" was not found!
+            Resource rid hash is None.
         """
         if not self.hash_table_id:
             raise Exception('`hash_table_id` not set!')
@@ -257,13 +259,18 @@ class CKAN(object):
             'limit': 1
         }
 
-        result = self.datastore_search(**kwargs)
-
         try:
+            result = self.datastore_search(**kwargs)
             resource_hash = result['records'][0]['hash']
+        except ckanapi.NotFound:
+            if self.verbose:
+                print(
+                    '`hash_table_id` "%s" was not found!' % self.hash_table_id)
+
+            resource_hash = None
         except IndexError:
             if self.verbose:
-                print('Resource %s not found in hash table.' % resource_id)
+                print('Resource "%s" not found in hash table.' % resource_id)
 
             resource_hash = None
 
