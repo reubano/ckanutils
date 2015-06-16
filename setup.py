@@ -44,16 +44,6 @@ def parse_requirements(filename, parent=None, dep=False):
 # Avoid byte-compiling the shipped template
 sys.dont_write_bytecode = True
 
-if sys.argv[-1] == 'publish':
-    system('python setup.py sdist upload')
-    sys.exit()
-
-# if sys.argv[-1] == 'info':
-#     for k, v in ckanutils.items():
-#         print('%s: %s' % (k, v))
-
-#     sys.exit()
-
 requirements = list(parse_requirements('requirements.txt'))
 dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
