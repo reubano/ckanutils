@@ -1,8 +1,9 @@
 ckanapi==3.5
 chardet==2.3.0
+manage.py==0.2.10
 python-slugify==0.0.7
 requests==2.4.3
 unicodecsv==0.9.4
 xlrd==0.9.3
 xattr==0.7.5
--e git+https://github.com/reubano/manage.py@dev#egg=manage.py
+

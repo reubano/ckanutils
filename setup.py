@@ -44,19 +44,8 @@ def parse_requirements(filename, parent=None, dep=False):
 # Avoid byte-compiling the shipped template
 sys.dont_write_bytecode = True
 
-if sys.argv[-1] == 'publish':
-    system('python setup.py sdist upload')
-    sys.exit()
-
-# if sys.argv[-1] == 'info':
-#     for k, v in ckanutils.items():
-#         print('%s: %s' % (k, v))
-
-#     sys.exit()
-
-requirements = parse_requirements('requirements.txt')
-requirements += ['argparse'] if sys.version_info < (2, 7) else []
-dev_requirements = parse_requirements('dev-requirements.txt')
+requirements = list(parse_requirements('requirements.txt'))
+dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
 changes = read('CHANGES.rst').replace('.. :changelog:', '')
@@ -93,5 +82,5 @@ setup(
         'Operating System :: POSIX :: Linux',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
-    scripts=[p.join('bin', ckanutils)],
+    scripts=[p.join('bin', 'ckanny')],
 )

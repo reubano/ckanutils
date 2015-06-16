@@ -11,6 +11,7 @@ from __future__ import (
 import traceback
 import sys
 
+from pprint import pprint
 from os import getcwd, unlink, environ, path as p
 from manager import Manager
 from xattr import xattr
@@ -40,6 +41,7 @@ def get_message(unchanged, force, hash_table_id):
 
 
 def update_resource(ckan, resource_id, filepath, **kwargs):
+    verbose = not kwargs.get('quiet')
     chunk_rows = kwargs.get('chunksize_rows')
     primary_key = kwargs.get('primary_key')
     content_type = kwargs.get('content-type')
@@ -55,6 +57,10 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     parser = getattr(utils, switch.get(extension))
     records = iter(parser(filepath, encoding=kwargs.get('encoding')))
     fields = list(utils.gen_fields(records.next().keys()))
+
+    if verbose:
+        print('Parsed fields:')
+        pprint(fields)
     create_kwargs = dict((k, v) for k, v in kwargs.items() if k in create_keys)
 
     if not primary_key:
@@ -191,9 +197,13 @@ def upload(source, **kwargs):
 
     # read encoding from extended attributes
     x = xattr(source)
-    kwargs['encoding'] = x.get('com.ckanutils.encoding') or kwargs['encoding']
 
-    if verbose:
+    try:
+        kwargs['encoding'] = x.get('com.ckanutils.encoding')
+    except IOError:
+        pass
+
+    if verbose and kwargs['encoding']:
         print('Using encoding %s' % kwargs['encoding'])
 
     try:
@@ -248,9 +258,6 @@ def delete(resource_id, **kwargs):
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
 @manager.arg(
-    'chunksize_rows', 'c', help='number of rows to write at a time',
-    type=int, default=CHUNKSIZE_ROWS)
-@manager.arg(
     'chunksize_bytes', 'C', help='number of bytes to read/write at a time',
     type=int, default=CHUNKSIZE_BYTES)
 @manager.arg(
@@ -272,10 +279,12 @@ def fetch(resource_id, **kwargs):
         # save encoding to extended attributes
         x = xattr(filepath)
 
-        if verbose:
+        if verbose and r.encoding:
             print('saving encoding %s to extended attributes') % r.encoding
 
-        x['com.ckanutils.encoding'] = r.encoding
+        if r.encoding:
+            x['com.ckanutils.encoding'] = r.encoding
+
         print(filepath)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
