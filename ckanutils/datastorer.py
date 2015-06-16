@@ -248,9 +248,6 @@ def delete(resource_id, **kwargs):
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
 @manager.arg(
-    'chunksize_rows', 'c', help='number of rows to write at a time',
-    type=int, default=CHUNKSIZE_ROWS)
-@manager.arg(
     'chunksize_bytes', 'C', help='number of bytes to read/write at a time',
     type=int, default=CHUNKSIZE_BYTES)
 @manager.arg(
