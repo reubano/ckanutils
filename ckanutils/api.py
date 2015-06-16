@@ -325,8 +325,8 @@ class CKAN(object):
         if p.isdir(filepath):
             basename = p.basename(url)
 
-            if basename == 'export?format=csv':
-                basename = '%s.csv' % resource_id
+            if basename.startswith('export?format='):
+                basename = '%s.%s' % (resource_id, basename.split('=')[1])
 
             filepath = p.join(filepath, basename)
 
