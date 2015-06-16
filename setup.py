@@ -54,9 +54,8 @@ if sys.argv[-1] == 'publish':
 
 #     sys.exit()
 
-requirements = parse_requirements('requirements.txt')
-requirements += ['argparse'] if sys.version_info < (2, 7) else []
-dev_requirements = parse_requirements('dev-requirements.txt')
+requirements = list(parse_requirements('requirements.txt'))
+dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
 changes = read('CHANGES.rst').replace('.. :changelog:', '')
@@ -93,5 +92,5 @@ setup(
         'Operating System :: POSIX :: Linux',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
-    scripts=[p.join('bin', ckanutils)],
+    scripts=[p.join('bin', 'ckanny')],
 )
