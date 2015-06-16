@@ -188,7 +188,7 @@ def upload(source, **kwargs):
     """Upload a file to a datastore table"""
     verbose = not kwargs.get('quiet')
     def_resource_id = p.splitext(p.basename(source))[0]
-    resource_id = kwargs.pop('resource_id', def_resource_id)
+    resource_id = kwargs.pop('resource_id', None) or def_resource_id
     ckan_kwargs = dict((k, v) for k, v in kwargs.items() if k in api.CKAN_KEYS)
 
     if verbose:
