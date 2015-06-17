@@ -40,7 +40,7 @@ manager = Manager()
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
 def fetch(resource_id, **kwargs):
-    """Download a filestore resource"""
+    """Downloads a filestore resource"""
     verbose = not kwargs.get('quiet')
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     fetch_kwargs = {

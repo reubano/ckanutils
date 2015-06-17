@@ -113,7 +113,7 @@ def update_hash_table(ckan, resource_id, resource_hash):
     type=bool, default=False)
 @manager.command
 def update(resource_id, **kwargs):
-    """Update a datastore table based on the current filestore resource"""
+    """Updates a datastore table based on the current filestore resource"""
     verbose = not kwargs.get('quiet')
     chunk_bytes = kwargs.get('chunksize_bytes')
     force = kwargs.pop('force')
@@ -178,7 +178,7 @@ def update(resource_id, **kwargs):
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
 def upload(source, **kwargs):
-    """Upload a file to a datastore table"""
+    """Uploads a file to a datastore table"""
     verbose = not kwargs.get('quiet')
     def_resource_id = p.splitext(p.basename(source))[0]
     resource_id = kwargs.pop('resource_id', None) or def_resource_id
@@ -224,7 +224,7 @@ def upload(source, **kwargs):
     ': "fred"}'))
 @manager.command
 def delete(resource_id, **kwargs):
-    """Delete a datastore table"""
+    """Deletes a datastore table"""
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     try:
