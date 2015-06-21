@@ -52,7 +52,10 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     except IndexError:
         extension = content_type.split('/')[1]
 
-    switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
+    xlsx_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml'
+    xlsx_type += '.sheet'
+    switch = {'xls': 'read_xls', 'csv': 'read_csv'}
+    switch[xlsx_type] = 'read_xls'
     parser = getattr(utils, switch.get(extension))
     records = iter(parser(filepath, encoding=kwargs.get('encoding')))
     fields = list(utils.gen_fields(records.next().keys()))
