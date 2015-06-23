@@ -41,11 +41,11 @@ manager = Manager()
 @manager.command
 def fetch(resource_id, **kwargs):
     """Downloads a filestore resource"""
-    verbose = not kwargs.get('quiet')
+    verbose = not kwargs['quiet']
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     fetch_kwargs = {
-        'filepath': kwargs.get('destination'),
-        'chunksize': kwargs.get('chunksize_bytes')
+        'filepath': kwargs['destination'],
+        'chunksize': kwargs['chunksize_bytes']
     }
 
     try:
