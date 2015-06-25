@@ -134,7 +134,6 @@ def update(resource_id, **kwargs):
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
         old_hash = ckan.get_hash(resource_id) if ckan.hash_table_id else None
-
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)

@@ -82,7 +82,6 @@ class CKAN(object):
         # print('verbose', self.verbose)
         self.hash_table_id = hash_tbl_id
 
-
         ckan_kwargs = {'apikey': api_key, 'user_agent': user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
@@ -376,7 +375,8 @@ class CKAN(object):
             if self.verbose:
                 print('Updating resource %s...' % resource_id)
 
-            data = {k: v for k, v in resource.items() if not isinstance(v, dict)}
+            data = {
+                k: v for k, v in resource.items() if not isinstance(v, dict)}
 
             try:
                 r = self.resource_create(**data)
