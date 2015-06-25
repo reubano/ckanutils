@@ -96,6 +96,8 @@ class CKAN(object):
         self.datastore_upsert = ckan.action.datastore_upsert
         self.datastore_search = ckan.action.datastore_search
         self.resource_show = ckan.action.resource_show
+        self.resource_create = ckan.action.resource_create
+        self.revision_show = ckan.action.revision_show
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table.
@@ -334,3 +336,51 @@ class CKAN(object):
         r = requests.get(url, stream=True, headers=headers)
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
+
+    def update_resource(self, resource_id, **kwargs):
+        """Create or update a single resource on filestore.
+
+        Args:
+            resource_id (str): The filestore resource id.
+            **kwargs: Keyword arguments that are passed to resource_create.
+
+        Kwargs:
+            name (str): The resource name.
+            filepath (str): New file path.
+            description (str): The resource description.
+            hash (str): The resource hash.
+
+        Returns:
+            bool: True if successful, False otherwise.
+
+        Examples:
+            >>> CKAN(quiet=True).update_resource('rid')
+            Resource "rid" was not found.
+            False
+        """
+        try:
+            resource = self.resource_show(id=resource_id)
+        except ckanapi.NotFound:
+            # Keep exception message consistent with the others
+            print('Resource "%s" was not found.' % resource_id)
+            return False
+        else:
+            filepath = kwargs.pop('filepath', None)
+            f = open(filepath, 'rb') if filepath else None
+            revision = self.revision_show(id=resource['revision_id'])
+
+            resource.update(kwargs)
+            resource.update({'upload': f}) if f else None
+            resource['package_id'] = revision['packages'][0]
+
+            if self.verbose:
+                print('Updating resource %s...' % resource_id)
+
+            data = {k: v for k, v in resource.items() if not isinstance(v, dict)}
+
+            try:
+                r = self.resource_create(**data)
+            finally:
+                f.close() if f else None
+
+            return r
