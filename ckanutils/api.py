@@ -379,6 +379,7 @@ class CKAN(object):
                 k: v for k, v in resource.items() if not isinstance(v, dict)}
 
             try:
+                # TODO: Figure out why this times out on large files
                 r = self.resource_create(**data)
             finally:
                 f.close() if f else None
