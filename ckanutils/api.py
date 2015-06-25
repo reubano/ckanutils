@@ -60,7 +60,7 @@ class CKAN(object):
             api_key (str): The ckan api key.
             ua (str): The user agent.
             force (bool): Force (default: True).
-            quiet (Optional[bool]): Suppress debug statements (default: False).
+            quiet (bool): Suppress debug statements (default: False).
 
         Returns:
             New instance of :class:`CKAN`
@@ -70,6 +70,7 @@ class CKAN(object):
             <ckanutils.api.CKAN object at 0x...>
         """
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
+        api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
         user_agent = kwargs.get('ua', default_ua)
         hash_tbl_id = kwargs.get('hash_table_id', environ.get(HASH_TABLE_ENV))
@@ -81,11 +82,8 @@ class CKAN(object):
         # print('verbose', self.verbose)
         self.hash_table_id = hash_tbl_id
 
-        ckan_kwargs = {
-            'apikey': kwargs.get('api_key', environ.get(API_KEY_ENV)),
-            'user_agent': user_agent
-        }
 
+        ckan_kwargs = {'apikey': api_key, 'user_agent': user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 

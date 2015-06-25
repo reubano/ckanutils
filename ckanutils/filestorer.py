@@ -34,7 +34,7 @@ manager = Manager()
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
 @manager.arg(
-    'chunksize_bytes', 'C', help='number of bytes to read/write at a time',
+    'chunksize_bytes', 'c', help='number of bytes to read/write at a time',
     type=int, default=api.CHUNKSIZE_BYTES)
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
