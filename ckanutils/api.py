@@ -60,7 +60,7 @@ class CKAN(object):
             api_key (str): The ckan api key.
             ua (str): The user agent.
             force (bool): Force (default: True).
-            quiet (Optional[bool]): Suppress debug statements (default: False).
+            quiet (bool): Suppress debug statements (default: False).
 
         Returns:
             New instance of :class:`CKAN`
@@ -70,6 +70,7 @@ class CKAN(object):
             <ckanutils.api.CKAN object at 0x...>
         """
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
+        api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
         user_agent = kwargs.get('ua', default_ua)
         hash_tbl_id = kwargs.get('hash_table_id', environ.get(HASH_TABLE_ENV))
@@ -81,11 +82,7 @@ class CKAN(object):
         # print('verbose', self.verbose)
         self.hash_table_id = hash_tbl_id
 
-        ckan_kwargs = {
-            'apikey': kwargs.get('api_key', environ.get(API_KEY_ENV)),
-            'user_agent': user_agent
-        }
-
+        ckan_kwargs = {'apikey': api_key, 'user_agent': user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
@@ -98,6 +95,8 @@ class CKAN(object):
         self.datastore_upsert = ckan.action.datastore_upsert
         self.datastore_search = ckan.action.datastore_search
         self.resource_show = ckan.action.resource_show
+        self.resource_create = ckan.action.resource_create
+        self.revision_show = ckan.action.revision_show
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table.
@@ -336,3 +335,53 @@ class CKAN(object):
         r = requests.get(url, stream=True, headers=headers)
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
+
+    def update_resource(self, resource_id, **kwargs):
+        """Create or update a single resource on filestore.
+
+        Args:
+            resource_id (str): The filestore resource id.
+            **kwargs: Keyword arguments that are passed to resource_create.
+
+        Kwargs:
+            name (str): The resource name.
+            filepath (str): New file path.
+            description (str): The resource description.
+            hash (str): The resource hash.
+
+        Returns:
+            bool: True if successful, False otherwise.
+
+        Examples:
+            >>> CKAN(quiet=True).update_resource('rid')
+            Resource "rid" was not found.
+            False
+        """
+        try:
+            resource = self.resource_show(id=resource_id)
+        except ckanapi.NotFound:
+            # Keep exception message consistent with the others
+            print('Resource "%s" was not found.' % resource_id)
+            return False
+        else:
+            filepath = kwargs.pop('filepath', None)
+            f = open(filepath, 'rb') if filepath else None
+            revision = self.revision_show(id=resource['revision_id'])
+
+            resource.update(kwargs)
+            resource.update({'upload': f}) if f else None
+            resource['package_id'] = revision['packages'][0]
+
+            if self.verbose:
+                print('Updating resource %s...' % resource_id)
+
+            data = {
+                k: v for k, v in resource.items() if not isinstance(v, dict)}
+
+            try:
+                # TODO: Figure out why this times out on large files
+                r = self.resource_create(**data)
+            finally:
+                f.close() if f else None
+
+            return r

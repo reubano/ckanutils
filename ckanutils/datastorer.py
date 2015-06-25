@@ -56,22 +56,29 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     xlsx_type += '.sheet'
     switch = {'xls': 'read_xls', 'csv': 'read_csv'}
     switch[xlsx_type] = 'read_xls'
-    parser = getattr(utils, switch.get(extension))
-    records = iter(parser(filepath, encoding=kwargs.get('encoding')))
-    fields = list(utils.gen_fields(records.next().keys()))
 
-    if verbose:
-        print('Parsed fields:')
-        pprint(fields)
+    try:
+        parser = getattr(utils, switch[extension])
+    except IndexError:
+        print("Error: plugin for extension '%s' not found!" % extension)
+        return False
+    else:
+        records = iter(parser(filepath, encoding=kwargs.get('encoding')))
+        fields = list(utils.gen_fields(records.next().keys()))
 
-    create_kwargs = {k: v for k, v in kwargs.items() if k in create_keys}
+        if verbose:
+            print('Parsed fields:')
+            pprint(fields)
 
-    if not primary_key:
-        ckan.delete_table(resource_id)
+        create_kwargs = {k: v for k, v in kwargs.items() if k in create_keys}
 
-    insert_kwargs = {'chunksize': chunk_rows, 'method': method}
-    ckan.create_table(resource_id, fields, **create_kwargs)
-    ckan.insert_records(resource_id, records, **insert_kwargs)
+        if not primary_key:
+            ckan.delete_table(resource_id)
+
+        insert_kwargs = {'chunksize': chunk_rows, 'method': method}
+        ckan.create_table(resource_id, fields, **create_kwargs)
+        ckan.insert_records(resource_id, records, **insert_kwargs)
+        return True
 
 
 def update_hash_table(ckan, resource_id, resource_hash):
@@ -117,8 +124,8 @@ def update_hash_table(ckan, resource_id, resource_hash):
 @manager.command
 def update(resource_id, **kwargs):
     """Updates a datastore table based on the current filestore resource"""
-    verbose = not kwargs.get('quiet')
-    chunk_bytes = kwargs.get('chunksize_bytes')
+    verbose = not kwargs['quiet']
+    chunk_bytes = kwargs['chunksize_bytes']
     force = kwargs.pop('force')
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
@@ -127,7 +134,11 @@ def update(resource_id, **kwargs):
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
         old_hash = ckan.get_hash(resource_id) if ckan.hash_table_id else None
-
+    except Exception as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
+    else:
         if old_hash:
             new_hash = utils.hash_file(filepath, **hash_kwargs)
             unchanged = new_hash == old_hash
@@ -142,17 +153,21 @@ def update(resource_id, **kwargs):
 
         kwargs['encoding'] = r.encoding
         kwargs['content_type'] = r.headers['content-type']
-        update_resource(ckan, resource_id, filepath, **kwargs)
-        needs_update = not unchanged
+        updated = update_resource(ckan, resource_id, filepath, **kwargs)
 
-        if needs_update and old_hash:
+        if updated and verbose:
+            print('Success! Resource %s updated.' % resource_id)
+
+        if updated and not unchanged and old_hash:
             update_hash_table(ckan, resource_id, new_hash)
-    except Exception as err:
-        sys.stderr.write('ERROR: %s\n' % str(err))
-        traceback.print_exc(file=sys.stdout)
-        sys.exit(1)
+        elif not updated:
+            sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
+            traceback.print_exc(file=sys.stdout)
+            sys.exit(1)
     finally:
-        print('Removing tempfile...')
+        if verbose:
+            print('Removing tempfile...')
+
         unlink(filepath)
 
 
@@ -182,7 +197,7 @@ def update(resource_id, **kwargs):
 @manager.command
 def upload(source, **kwargs):
     """Uploads a file to a datastore table"""
-    verbose = not kwargs.get('quiet')
+    verbose = not kwargs['quiet']
     def_resource_id = p.splitext(p.basename(source))[0]
     resource_id = kwargs.pop('resource_id', None) or def_resource_id
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
@@ -204,9 +219,15 @@ def upload(source, **kwargs):
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
-        update_resource(ckan, resource_id, source, **kwargs)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
+
+    if update_resource(ckan, resource_id, source, **kwargs):
+        print('Success! Resource %s uploaded.' % resource_id)
+    else:
+        sys.stderr.write('ERROR: resource %s not uploaded.' % resource_id)
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
 

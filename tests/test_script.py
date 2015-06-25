@@ -32,27 +32,21 @@ def main(verbose=False):
     print('\nScripttest: #%i ... ok' % test_num)
     test_num += 1
 
-    # Test dsdelete usage
-    result = env.run('%s ds.delete --help' % script)
+    # Test command usage
+    commands = [
+        'ds.delete', 'ds.update', 'ds.upload', 'fs.fetch', 'fs.migrate',
+        'fs.upload']
 
-    if verbose:
-        print(result.stdout)
+    for command in commands:
+        result = env.run('%s %s --help' % (script, command))
 
-    usage = 'usage: %s ds.delete\n' % script
-    assert ' '.join(result.stdout.split(' ')[:3]) == usage
-    print('Scripttest: #%i ... ok' % test_num)
-    test_num += 1
+        if verbose:
+            print(result.stdout)
 
-    # Test dsupdate usage
-    result = env.run('%s ds.update --help' % script)
-
-    if verbose:
-        print(result.stdout)
-
-    usage = 'usage: %s ds.update\n' % script
-    assert ' '.join(result.stdout.split(' ')[:3]) == usage
-    print('Scripttest: #%i ... ok' % test_num)
-    test_num += 1
+        usage = 'usage: %s %s\n' % (script, command)
+        assert ' '.join(result.stdout.split(' ')[:3]) == usage
+        print('Scripttest: %s ... ok' % command)
+        test_num += 1
 
     # Test version
     result = env.run('%s ver' % script)
@@ -62,6 +56,8 @@ def main(verbose=False):
 
     assert result.stdout.split('\n')[0] == 'v%s' % version
     print('Scripttest: #%i ... ok' % test_num)
+
+    # End of testing
     print('-----------------------------')
     print('Ran %i tests\n\nOK' % test_num)
     exit(0)
