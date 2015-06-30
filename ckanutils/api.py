@@ -366,11 +366,10 @@ class CKAN(object):
         else:
             filepath = kwargs.pop('filepath', None)
             f = open(filepath, 'rb') if filepath else None
-            revision = self.revision_show(id=resource['revision_id'])
 
             resource.update(kwargs)
             resource.update({'upload': f}) if f else None
-            resource['package_id'] = revision['packages'][0]
+            resource['package_id'] = self.get_package_id(resource_id)
 
             if self.verbose:
                 print('Updating resource %s...' % resource_id)
@@ -390,3 +389,27 @@ class CKAN(object):
                 f.close() if f else None
 
             return r
+
+    def get_package_id(self, resource_id):
+        """Gets the package id of a single resource on filestore.
+
+        Args:
+            resource_id (str): The filestore resource id.
+
+        Returns:
+            str: The package id.
+
+        Examples:
+            >>> CKAN(quiet=True).get_package_id('rid')
+            Resource "rid" was not found.
+            None
+        """
+        try:
+            resource = self.resource_show(id=resource_id)
+        except ckanapi.NotFound:
+            # Keep exception message consistent with the others
+            print('Resource "%s" was not found.' % resource_id)
+            return None
+        else:
+            revision = self.revision_show(id=resource['revision_id'])
+            return revision['packages'][0]
