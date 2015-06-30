@@ -89,9 +89,7 @@ def fetch(resource_id, **kwargs):
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
 def migrate(resource_id, **kwargs):
-    """Replaces the filestore of a resource on a destination ckan instance with
-        the filestore of the same resource on a source ckan instance
-    """
+    """Copies a filestore resource from one ckan instance to another"""
     src_remote, dest_remote = kwargs['src_remote'], kwargs['dest_remote']
 
     if src_remote == dest_remote:
