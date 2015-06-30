@@ -70,11 +70,11 @@ class CKAN(object):
             <ckanutils.api.CKAN object at 0x...>
         """
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
-        api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
         user_agent = kwargs.get('ua', default_ua)
         hash_tbl_id = kwargs.get('hash_table_id', environ.get(HASH_TABLE_ENV))
 
+        self.api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         self.force = kwargs.get('force', True)
         self.quiet = kwargs.get('quiet')
         self.user_agent = user_agent
@@ -82,7 +82,7 @@ class CKAN(object):
         # print('verbose', self.verbose)
         self.hash_table_id = hash_tbl_id
 
-        ckan_kwargs = {'apikey': api_key, 'user_agent': user_agent}
+        ckan_kwargs = {'apikey': self.api_key, 'user_agent': user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
@@ -232,7 +232,15 @@ class CKAN(object):
                         count, count + length - 1, resource_id))
 
             kwargs['records'] = chunk
-            self.datastore_upsert(**kwargs)
+
+            try:
+                self.datastore_upsert(**kwargs)
+            except ConnectionError as err:
+                if 'Broken pipe' in err.message[1]:
+                    print('Chunksize too large. Try using a smaller chunksize.')
+                    return 0
+                else:
+                    raise err
             count += length
 
         return count
@@ -344,6 +352,7 @@ class CKAN(object):
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
+            post (bool): Post data using requests instead of ckanapi.
             name (str): The resource name.
             filepath (str): New file path.
             description (str): The resource description.
@@ -364,21 +373,36 @@ class CKAN(object):
             print('Resource "%s" was not found.' % resource_id)
             return False
         else:
+            post = kwargs.pop('post', None)
             filepath = kwargs.pop('filepath', None)
             f = open(filepath, 'rb') if filepath else None
 
             resource.update(kwargs)
-            resource.update({'upload': f}) if f else None
             resource['package_id'] = self.get_package_id(resource_id)
 
             if self.verbose:
                 print('Updating resource %s...' % resource_id)
 
-            data = {
-                k: v for k, v in resource.items() if not isinstance(v, dict)}
+            if post:
+                url = '%s/api/action/resource_create' % self.address
+                hdrs = {
+                    'X-CKAN-API-Key': self.api_key,
+                    'User-Agent': self.user_agent
+                }
+
+                data = {'data': resource, 'headers': hdrs}
+                data.update({'files': {'upload': f}}) if f else None
+            else:
+                resource.update({'upload': f}) if f else None
+                data = {
+                    k: v for k, v in resource.items()
+                    if not isinstance(v, dict)}
 
             try:
-                r = self.resource_create(**data)
+                if post:
+                    r = requests.post(url, **data)
+                else:
+                    r = self.resource_create(**data)
             except requests.exceptions.ConnectionError as err:
                 if 'Broken pipe' in err.message[1]:
                     print('File size too large. Try uploading a smaller file.')
