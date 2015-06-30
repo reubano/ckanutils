@@ -318,10 +318,10 @@ class CKAN(object):
             # Keep exception message consistent with the others
             raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
 
-        url = resource['url']
+        url = resource['perma_link']
 
         if self.verbose:
-            print('Downloading resource %s...' % resource_id)
+            print('Downloading url %s...' % url)
 
         if p.isdir(filepath):
             basename = p.basename(url)
@@ -379,8 +379,13 @@ class CKAN(object):
                 k: v for k, v in resource.items() if not isinstance(v, dict)}
 
             try:
-                # TODO: Figure out why this times out on large files
                 r = self.resource_create(**data)
+            except requests.exceptions.ConnectionError as err:
+                if 'Broken pipe' in err.message[1]:
+                    print('File size too large. Try uploading a smaller file.')
+                    r = None
+                else:
+                    raise err
             finally:
                 f.close() if f else None
 

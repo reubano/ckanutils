@@ -52,8 +52,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     except IndexError:
         extension = content_type.split('/')[1]
 
-    xlsx_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml'
-    xlsx_type += '.sheet'
+    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     switch = {'xls': 'read_xls', 'csv': 'read_csv'}
     switch[xlsx_type] = 'read_xls'
 
