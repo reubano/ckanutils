@@ -376,7 +376,6 @@ class CKAN(object):
             post = kwargs.pop('post', None)
             filepath = kwargs.pop('filepath', None)
             f = open(filepath, 'rb') if filepath else None
-
             resource.update(kwargs)
             resource['package_id'] = self.get_package_id(resource_id)
 
