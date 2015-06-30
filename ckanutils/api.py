@@ -88,9 +88,10 @@ class CKAN(object):
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
         self.address = ckan.address
+        self.package_show = ckan.action.package_show
 
         try:
-            self.hash_table_pack = ckan.action.package_show(id=self.hash_table)
+            self.hash_table_pack = self.package_show(id=self.hash_table)
         except NotFound:
             self.hash_table_pack = None
 
@@ -110,6 +111,7 @@ class CKAN(object):
         self.package_create = ckan.action.package_create
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
+        self.organization_show = ckan.action.organization_show
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table for an existing filestore resource.

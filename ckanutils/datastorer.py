@@ -145,8 +145,8 @@ def update_hash_table(ckan, resource_id, resource_hash, verbose=False):
 @manager.command
 def update(resource_id, force=None, **kwargs):
     """Updates a datastore table based on the current filestore resource"""
-    verbose = not kwargs['quiet']
-    chunk_bytes = kwargs['chunksize_bytes']
+    verbose = not kwargs.get('quiet')
+    chunk_bytes = kwargs.get('chunk_bytes', api.CHUNKSIZE_BYTES)
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
 
