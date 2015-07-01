@@ -22,6 +22,7 @@ from __future__ import (
     unicode_literals)
 
 import sys
+import httplib
 import hashlib
 import xlrd
 import itertools as it
@@ -33,6 +34,22 @@ from tempfile import NamedTemporaryFile
 from slugify import slugify
 
 ENCODING = 'utf-8'
+
+
+def patch_http_response_read(func):
+    """Patches httplib to read poorly encoded chunked data.
+
+    http://stackoverflow.com/a/14206036/408556
+    """
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+
+    return inner
+
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 
 def _read_csv(f, encoding, names):
@@ -356,10 +373,9 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
         >>> write_file(filepath, r)
         True
     """
-    length = int(r.headers.get('content-length') or 0)
-
     with open(filepath, mode) as f:
-        if chunksize:
+        if chunksize and r.headers.get('transfer-encoding') == 'chunked':
+            length = int(r.headers.get('content-length') or 0)
             progress = 0
 
             for chunk in r.iter_content(chunksize):

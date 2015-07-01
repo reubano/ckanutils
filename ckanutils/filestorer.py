@@ -89,9 +89,7 @@ def fetch(resource_id, **kwargs):
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
 def migrate(resource_id, **kwargs):
-    """Replaces the filestore of a resource on a destination ckan instance with
-        the filestore of the same resource on a source ckan instance
-    """
+    """Copies a filestore resource from one ckan instance to another"""
     src_remote, dest_remote = kwargs['src_remote'], kwargs['dest_remote']
 
     if src_remote == dest_remote:
@@ -143,11 +141,10 @@ def migrate(resource_id, **kwargs):
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
-def upload(source, **kwargs):
+def upload(source, resource_id=None, **kwargs):
     """Uploads a file to the filestore of an existing resource"""
     verbose = not kwargs['quiet']
-    def_resource_id = p.splitext(p.basename(source))[0]
-    resource_id = kwargs.pop('resource_id', None) or def_resource_id
+    resource_id = resource_id or p.splitext(p.basename(source))[0]
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     if verbose:
