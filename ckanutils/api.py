@@ -235,7 +235,7 @@ class CKAN(object):
 
             try:
                 self.datastore_upsert(**kwargs)
-            except ConnectionError as err:
+            except requests.exceptions.ConnectionError as err:
                 if 'Broken pipe' in err.message[1]:
                     print('Chunksize too large. Try using a smaller chunksize.')
                     return 0
@@ -425,7 +425,6 @@ class CKAN(object):
         Examples:
             >>> CKAN(quiet=True).get_package_id('rid')
             Resource "rid" was not found.
-            None
         """
         try:
             resource = self.resource_show(id=resource_id)
