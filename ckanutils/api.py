@@ -25,6 +25,7 @@ import ckanapi
 
 from os import environ, path as p
 from . import utils, __version__ as version
+from ckanapi import NotFound
 
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
@@ -89,7 +90,7 @@ class CKAN(object):
 
         try:
             hash_table_pack = ckan.action.package_show(id=self.hash_table)
-        except ckanapi.NotFound:
+        except NotFound:
             self.hash_table_id = None
         else:
             self.hash_table_id = hash_table_pack['resources'][0]['id']
@@ -178,7 +179,7 @@ class CKAN(object):
 
         try:
             result = self.datastore_delete(**kwargs)
-        except ckanapi.NotFound:
+        except NotFound:
             result = None
 
             if self.verbose:
@@ -271,7 +272,8 @@ class CKAN(object):
             >>> CKAN(quiet=True).get_hash('rid')
         """
         if not self.hash_table_id:
-            raise ckanapi.NotFound('`hash_table_id` not set!')
+            message = '`hash_table_id` not set!'
+            raise NotFound({'message': message, 'item': 'package'})
 
         kwargs = {
             'resource_id': self.hash_table_id,
@@ -283,12 +285,12 @@ class CKAN(object):
         try:
             result = self.datastore_search(**kwargs)
             resource_hash = result['records'][0]['hash']
-        except ckanapi.NotFound:
-            if self.verbose:
-                print(
-                    '`hash_table_id` "%s" was not found!' % self.hash_table_id)
+        except NotFound:
+            message = (
+                'Hash table `%s` was not found in datastore!' %
+                self.hash_table_id)
 
-            resource_hash = None
+            raise NotFound({'message': message, 'item': 'datastore'})
         except IndexError:
             if self.verbose:
                 print('Resource "%s" not found in hash table.' % resource_id)
@@ -328,7 +330,7 @@ class CKAN(object):
 
         try:
             resource = self.resource_show(id=resource_id)
-        except ckanapi.NotFound:
+        except NotFound:
             # Keep exception message consistent with the others
             raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
 
@@ -407,7 +409,7 @@ class CKAN(object):
                 r = requests.post(url, **data)
             else:
                 r = self.resource_create(**data)
-        except ckanapi.NotFound:
+        except NotFound:
             # Keep exception message consistent with the others
             if 'resource_id' in resource:
                 print('Resource "%s" was not found.' % resource['resource_id'])
@@ -488,7 +490,7 @@ class CKAN(object):
         """
         try:
             resource = self.resource_show(id=resource_id)
-        except ckanapi.NotFound:
+        except NotFound:
             # Keep exception message consistent with the others
             print('Resource "%s" was not found.' % resource_id)
             return False
@@ -512,7 +514,7 @@ class CKAN(object):
         """
         try:
             resource = self.resource_show(id=resource_id)
-        except ckanapi.NotFound:
+        except NotFound:
             # Keep exception message consistent with the others
             print('Resource "%s" was not found.' % resource_id)
             return None

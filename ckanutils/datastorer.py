@@ -21,19 +21,14 @@ from . import api
 manager = Manager()
 
 
-def get_message(unchanged, force, old_hash):
-    needs_update = not unchanged
-
+def get_message(unchanged, force):
     if unchanged and not force:
         message = 'No new data found. Not updating datastore.'
     elif unchanged and force:
         message = 'No new data found, but update forced.'
         message += ' Updating datastore...'
-    elif needs_update and old_hash:
+    elif not unchanged:
         message = 'New data found. Updating datastore...'
-    elif not old_hash:
-        message = '`hash_table` not set or table not found.'
-        message += ' Updating datastore...'
 
     return message
 
@@ -60,7 +55,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     try:
         parser = getattr(utils, switch[extension])
     except IndexError:
-        print("Error: plugin for extension '%s' not found!" % extension)
+        print('Error: plugin for extension `%s` not found!' % extension)
         return False
     else:
         records = parser(filepath, encoding=kwargs.get('encoding'))
@@ -84,18 +79,24 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         return True
 
 
-def update_hash_table(ckan, resource_id, resource_hash):
-    create_kwargs = {
-        'resource_id': ckan.hash_table,
+def create_hash_table(ckan, verbose):
+    kwargs = {
+        'resource_id': ckan.hash_table_id,
         'fields': [
             {'id': 'datastore_id', 'type': 'text'},
             {'id': 'hash', 'type': 'text'}],
         'primary_key': 'datastore_id'
     }
 
-    ckan.create_table(**create_kwargs)
+    if verbose:
+        print('Creating hash table')
+
+    ckan.create_table(**kwargs)
+
+
+def update_hash_table(ckan, resource_id, resource_hash):
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
-    ckan.insert_records(ckan.hash_table, records, method='upsert')
+    ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
 
 @manager.arg(
@@ -138,6 +139,7 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
+        # r, filepath = (1,2)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
@@ -145,17 +147,19 @@ def update(resource_id, force=None, **kwargs):
     else:
         try:
             old_hash = ckan.get_hash(resource_id)
-        except ckanapi.NotFound:
-            ckan.create_resource(kwargs['hash_table'])
+        except api.NotFound as err:
+            if err.args[0]['item'] == 'package':
+                ckan.create_package(kwargs['hash_table'])
+                ckan.create_resource(kwargs['hash_table'])
 
-        if old_hash:
-            new_hash = utils.hash_file(filepath, **hash_kwargs)
-            unchanged = new_hash == old_hash
-        else:
-            unchanged = None
+            create_hash_table(ckan, verbose)
+            old_hash = ckan.get_hash(resource_id)
+
+        new_hash = utils.hash_file(filepath, **hash_kwargs)
+        unchanged = new_hash == old_hash if old_hash else False
 
         if verbose:
-            print(get_message(unchanged, force, old_hash))
+            print(get_message(unchanged, force))
 
         if unchanged and not force:
             sys.exit(0)
@@ -167,7 +171,7 @@ def update(resource_id, force=None, **kwargs):
         if updated and verbose:
             print('Success! Resource %s updated.' % resource_id)
 
-        if updated and not unchanged and old_hash:
+        if updated and not unchanged:
             update_hash_table(ckan, resource_id, new_hash)
         elif not updated:
             sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
