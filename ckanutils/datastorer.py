@@ -53,7 +53,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         extension = content_type.split('/')[1]
 
     xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    switch = {'xls': 'read_xls', 'csv': 'read_csv'}
+    switch = {'xls': 'read_xls', 'csv': 'read_csv', 'xlsx': 'read_xls'}
     switch[xlsx_type] = 'read_xls'
 
     try:
