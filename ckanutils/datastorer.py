@@ -111,7 +111,7 @@ def update_hash_table(ckan, resource_id, resource_hash):
     default=api.DEF_HASH_TABLE)
 @manager.arg(
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
-    default=environ.get(api.UA_ENV))
+    default=environ.get(api.UA_ENV, api.DEF_USER_AGENT))
 @manager.arg(
     'chunksize_rows', 'c', help='number of rows to write at a time',
     type=int, default=api.CHUNKSIZE_ROWS)

@@ -24,13 +24,13 @@ import requests
 import ckanapi
 
 from os import environ, path as p
-from . import utils
+from . import utils, __version__ as version
 
-DEF_USER_AGENT = 'ckanapiexample/1.0'
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
 REMOTE_ENV = 'CKAN_REMOTE_URL'
 UA_ENV = 'CKAN_USER_AGENT'
+DEF_USER_AGENT = 'ckanutils/%s' % version
 DEF_HASH_TABLE = 'hash-table'
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
@@ -71,17 +71,16 @@ class CKAN(object):
         """
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
-        user_agent = kwargs.get('ua', default_ua)
 
         self.api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         self.force = kwargs.get('force', True)
         self.quiet = kwargs.get('quiet')
-        self.user_agent = user_agent
+        self.user_agent = kwargs.get('ua', default_ua)
         self.verbose = not self.quiet
         # print('verbose', self.verbose)
         self.hash_table = kwargs.get('hash_table', DEF_HASH_TABLE)
 
-        ckan_kwargs = {'apikey': self.api_key, 'user_agent': user_agent}
+        ckan_kwargs = {'apikey': self.api_key, 'user_agent': self.user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
