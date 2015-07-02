@@ -69,10 +69,12 @@ class CKAN(object):
             >>> CKAN()  #doctest: +ELLIPSIS
             <ckanutils.api.CKAN object at 0x...>
         """
-        remote = kwargs.get('remote', environ.get(REMOTE_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
+        def_remote = environ.get(REMOTE_ENV)
+        def_api_key = environ.get(API_KEY_ENV)
+        remote = kwargs.get('remote', def_remote)
 
-        self.api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
+        self.api_key = kwargs.get('api_key', def_api_key)
         self.force = kwargs.get('force', True)
         self.quiet = kwargs.get('quiet')
         self.user_agent = kwargs.get('ua', default_ua)
@@ -433,7 +435,8 @@ class CKAN(object):
         Kwargs:
             post (bool): Post data using requests instead of ckanapi.
             name (str): The resource name.
-            filepath (str): New file path.
+            filepath (str): New file path (for file upload).
+            url (str): New file url (for file link).
             description (str): The resource description.
             hash (str): The resource hash.
 
@@ -473,8 +476,7 @@ class CKAN(object):
             else:
                 resource.update({'upload': f}) if f else None
                 data = {
-                    k: v for k, v in resource.items()
-                    if not isinstance(v, dict)}
+                    k: v for k, v in resource.items() if not isinstance(v, dict)}
 
             try:
                 if post:
