@@ -32,7 +32,7 @@ def get_message(unchanged, force, old_hash):
     elif needs_update and old_hash:
         message = 'New data found. Updating datastore...'
     elif not old_hash:
-        message = '`hash_table_id` not set or table not found.'
+        message = '`hash_table` not set or table not found.'
         message += ' Updating datastore...'
 
     return message
@@ -86,7 +86,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
 
 def update_hash_table(ckan, resource_id, resource_hash):
     create_kwargs = {
-        'resource_id': ckan.hash_table_id,
+        'resource_id': ckan.hash_table,
         'fields': [
             {'id': 'datastore_id', 'type': 'text'},
             {'id': 'hash', 'type': 'text'}],
@@ -95,7 +95,7 @@ def update_hash_table(ckan, resource_id, resource_hash):
 
     ckan.create_table(**create_kwargs)
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
-    ckan.insert_records(ckan.hash_table_id, records, method='upsert')
+    ckan.insert_records(ckan.hash_table, records, method='upsert')
 
 
 @manager.arg(
@@ -107,8 +107,8 @@ def update_hash_table(ckan, resource_id, resource_hash):
     'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
     api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
 @manager.arg(
-    'hash_table_id', 'H', help=('the hash table resource id (uses `%s` ENV if '
-    'available)' % api.HASH_TABLE_ENV), default=environ.get(api.HASH_TABLE_ENV))
+    'hash_table', 'H', help='the hash table package id',
+    default=api.DEF_HASH_TABLE)
 @manager.arg(
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
@@ -138,12 +138,16 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-        old_hash = ckan.get_hash(resource_id) if ckan.hash_table_id else None
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
     else:
+        try:
+            old_hash = ckan.get_hash(resource_id)
+        except ckanapi.NotFound:
+            ckan.create_resource(kwargs['hash_table'])
+
         if old_hash:
             new_hash = utils.hash_file(filepath, **hash_kwargs)
             unchanged = new_hash == old_hash

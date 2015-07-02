@@ -26,12 +26,12 @@ import ckanapi
 from os import environ, path as p
 from . import utils
 
-CKAN_KEYS = ['hash_table_id', 'remote', 'api_key', 'ua', 'force', 'quiet']
 DEF_USER_AGENT = 'ckanapiexample/1.0'
+CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
-HASH_TABLE_ENV = 'CKAN_HASH_TABLE_ID'
 REMOTE_ENV = 'CKAN_REMOTE_URL'
 UA_ENV = 'CKAN_USER_AGENT'
+DEF_HASH_TABLE = 'hash-table'
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
 
@@ -44,7 +44,7 @@ class CKAN(object):
         verbose (bool): Print debug statements.
         quiet (bool): Suppress debug statements.
         address (str): CKAN url.
-        hash_table_id (str): The datastore hash table resource id.
+        hash_table (str): The hash table package id.
         keys (List[str]):
     """
 
@@ -55,7 +55,7 @@ class CKAN(object):
             **kwargs: Keyword arguments.
 
         Kwargs:
-            hash_table_id (str): The datastore hash table resource id.
+            hash_table (str): The hash table package id.
             remote (str): The remote ckan url.
             api_key (str): The ckan api key.
             ua (str): The user agent.
@@ -72,7 +72,6 @@ class CKAN(object):
         remote = kwargs.get('remote', environ.get(REMOTE_ENV))
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
         user_agent = kwargs.get('ua', default_ua)
-        hash_tbl_id = kwargs.get('hash_table_id', environ.get(HASH_TABLE_ENV))
 
         self.api_key = kwargs.get('api_key', environ.get(API_KEY_ENV))
         self.force = kwargs.get('force', True)
@@ -80,13 +79,20 @@ class CKAN(object):
         self.user_agent = user_agent
         self.verbose = not self.quiet
         # print('verbose', self.verbose)
-        self.hash_table_id = hash_tbl_id
+        self.hash_table = kwargs.get('hash_table', DEF_HASH_TABLE)
 
         ckan_kwargs = {'apikey': self.api_key, 'user_agent': user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
         self.address = ckan.address
+
+        try:
+            hash_table_pack = ckan.action.package_show(id=self.hash_table)
+        except ckanapi.NotFound:
+            self.hash_table_id = None
+        else:
+            self.hash_table_id = hash_table_pack['resources'][0]['id']
 
         # shortcuts
         self.datastore_search = ckan.action.datastore_search
@@ -255,17 +261,16 @@ class CKAN(object):
             str: The datastore resource hash.
 
         Raises:
-            Exception: If `hash_table_id` isn't set.
+            NotFound: If `hash_table_id` isn't set.
             NotAuthorized: If unable to authorize ckan user.
-            NotFound: If unable to find the hash table resource.
 
         Examples:
-            >>> CKAN(hash_table_id='hid').get_hash('rid')
-            `hash_table_id` "hid" was not found!
+            >>> CKAN(hash_table='hash').get_hash('rid')
+            `hash_table` "hash" was not found!
             Resource rid hash is None.
         """
         if not self.hash_table_id:
-            raise Exception('`hash_table_id` not set!')
+            raise ckanapi.NotFound('`hash_table_id` not set!')
 
         kwargs = {
             'resource_id': self.hash_table_id,
@@ -344,8 +349,83 @@ class CKAN(object):
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
 
+    def create_resource(self, package_id, **kwargs):
+        """Creates a single resource on filestore.
+        To create a resource, you must supply either `filepath` or `url`.
+
+        Args:
+            package_id (str): The filestore package id.
+            **kwargs: Keyword arguments that are passed to resource_create.
+
+        Kwargs:
+            post (bool): Post data using requests instead of ckanapi.
+            name (str): The resource name.
+            filepath (str): New file path (for file upload).
+            url (str): New file url (for file link).
+            description (str): The resource description.
+            hash (str): The resource hash.
+
+        Returns:
+            bool: True if successful, False otherwise.
+
+        Raises:
+            TypeError: If neither `url` nor `filepath` are supplied.
+
+        Examples:
+            >>> CKAN(quiet=True).update_resource('pid')
+            Resource "rid" was not found.
+            False
+            >>> url = 'http://example.com/file'
+            >>> CKAN(quiet=True).update_resource('pid', url=url)
+            Resource "rid" was not found.
+            False
+        """
+        if kwargs.get('url') or kwargs.get('filepath'):
+            resource = {}
+        else:
+            raise TypeError('You must specify either a `url` or `filepath`')
+
+        post = kwargs.pop('post', None)
+        filepath = kwargs.pop('filepath', None)
+        f = open(filepath, 'rb') if filepath else None
+        resource.update(kwargs)
+        resource['package_id'] = package_id
+
+        if self.verbose:
+            print('Creating new resource in package %s...' % package_id)
+
+        if post:
+            url = '%s/api/action/resource_create' % self.address
+            hdrs = {
+                'X-CKAN-API-Key': self.api_key,
+                'User-Agent': self.user_agent
+            }
+
+            data = {'data': resource, 'headers': hdrs}
+            data.update({'files': {'upload': f}}) if f else None
+        else:
+            resource.update({'upload': f}) if f else None
+            data = {
+                k: v for k, v in resource.items() if not isinstance(v, dict)}
+
+        try:
+            if post:
+                r = requests.post(url, **data)
+            else:
+                r = self.resource_create(**data)
+        except requests.exceptions.ConnectionError as err:
+            if 'Broken pipe' in err.message[1]:
+                print('File size too large. Try uploading a smaller file.')
+                r = None
+            else:
+                raise err
+        finally:
+            f.close() if f else None
+
+        return r
+
     def update_resource(self, resource_id, **kwargs):
-        """Create or update a single resource on filestore.
+        """Updates a single resource on filestore.
 
         Args:
             resource_id (str): The filestore resource id.
