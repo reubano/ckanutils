@@ -350,12 +350,12 @@ class CKAN(object):
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
 
-    def create_resource(self, package_id, **kwargs):
-        """Creates a single resource on filestore.
+    def _update_resource(self, resource, message, **kwargs):
+        """Helps create or update a single resource on filestore.
         To create a resource, you must supply either `filepath` or `url`.
 
         Args:
-            package_id (str): The filestore package id.
+            resource (dict): The resource passed to resource_create.
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
@@ -369,38 +369,31 @@ class CKAN(object):
         Returns:
             bool: True if successful, False otherwise.
 
-        Raises:
-            TypeError: If neither `url` nor `filepath` are supplied.
-
         Examples:
-            >>> CKAN(quiet=True).update_resource('pid')
-            Resource "rid" was not found.
-            False
+            >>> ckan = CKAN(quiet=True)
             >>> url = 'http://example.com/file'
-            >>> CKAN(quiet=True).update_resource('pid', url=url)
+            >>> resource = {'package_id': 'pid', 'url': url}
+            >>> message = 'Creating new resource...'
+            >>> ckan._update_resource(resource, message)
             Resource "rid" was not found.
             False
+            >>> resource.update({'resource_id': 'rid', 'name': 'name'})
+            >>> resource.update({'description': 'description', 'hash': 'hash'})
+            >>> message = 'Updating resource...'
+            >>> ckan._update_resource(resource, message)
         """
-        if kwargs.get('url') or kwargs.get('filepath'):
-            resource = {}
-        else:
-            raise TypeError('You must specify either a `url` or `filepath`')
-
         post = kwargs.pop('post', None)
         filepath = kwargs.pop('filepath', None)
         f = open(filepath, 'rb') if filepath else None
         resource.update(kwargs)
-        resource['package_id'] = package_id
 
         if self.verbose:
-            print('Creating new resource in package %s...' % package_id)
+            print(message)
 
         if post:
             url = '%s/api/action/resource_create' % self.address
             hdrs = {
-                'X-CKAN-API-Key': self.api_key,
-                'User-Agent': self.user_agent
-            }
+                'X-CKAN-API-Key': self.api_key, 'User-Agent': self.user_agent}
 
             data = {'data': resource, 'headers': hdrs}
             data.update({'files': {'upload': f}}) if f else None
@@ -424,6 +417,45 @@ class CKAN(object):
             f.close() if f else None
 
         return r
+
+    def create_resource(self, package_id, **kwargs):
+        """Creates a single resource on filestore.
+        To create a resource, you must supply either `filepath` or `url`.
+
+        Args:
+            package_id (str): The filestore package id.
+            **kwargs: Keyword arguments that are passed to resource_create.
+
+        Kwargs:
+            filepath (str): New file path (for file upload).
+            url (str): New file url (for file link).
+            post (bool): Post data using requests instead of ckanapi.
+            name (str): The resource name.
+            description (str): The resource description.
+            hash (str): The resource hash.
+
+        Returns:
+            bool: True if successful, False otherwise.
+
+        Raises:
+            TypeError: If neither `url` nor `filepath` are supplied.
+
+        Examples:
+            >>> ckan = CKAN(quiet=True)
+            >>> ckan.update_resource('pid')
+            Resource "rid" was not found.
+            False
+            >>> url = 'http://example.com/file'
+            >>> ckan.update_resource('pid', url=url)
+            Resource "rid" was not found.
+            False
+        """
+        if not kwargs.get('url') or kwargs.get('filepath'):
+            raise TypeError('You must specify either a `url` or `filepath`')
+
+        resource = {'package_id': package_id}
+        message = 'Creating new resource in package %s...' % package_id
+        return self._update_resource(resource, message, **kwargs)
 
     def update_resource(self, resource_id, **kwargs):
         """Updates a single resource on filestore.
@@ -454,45 +486,10 @@ class CKAN(object):
             # Keep exception message consistent with the others
             print('Resource "%s" was not found.' % resource_id)
             return False
-        else:
-            post = kwargs.pop('post', None)
-            filepath = kwargs.pop('filepath', None)
-            f = open(filepath, 'rb') if filepath else None
-            resource.update(kwargs)
-            resource['package_id'] = self.get_package_id(resource_id)
 
-            if self.verbose:
-                print('Updating resource %s...' % resource_id)
-
-            if post:
-                url = '%s/api/action/resource_create' % self.address
-                hdrs = {
-                    'X-CKAN-API-Key': self.api_key,
-                    'User-Agent': self.user_agent
-                }
-
-                data = {'data': resource, 'headers': hdrs}
-                data.update({'files': {'upload': f}}) if f else None
-            else:
-                resource.update({'upload': f}) if f else None
-                data = {
-                    k: v for k, v in resource.items() if not isinstance(v, dict)}
-
-            try:
-                if post:
-                    r = requests.post(url, **data)
-                else:
-                    r = self.resource_create(**data)
-            except requests.exceptions.ConnectionError as err:
-                if 'Broken pipe' in err.message[1]:
-                    print('File size too large. Try uploading a smaller file.')
-                    r = None
-                else:
-                    raise err
-            finally:
-                f.close() if f else None
-
-            return r
+        resource['package_id'] = self.get_package_id(resource_id)
+        message = 'Updating resource %s...' % resource_id
+        return self._update_resource(resource, message, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
