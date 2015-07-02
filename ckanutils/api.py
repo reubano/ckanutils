@@ -266,8 +266,9 @@ class CKAN(object):
 
         Examples:
             >>> CKAN(hash_table='hash').get_hash('rid')
-            `hash_table` "hash" was not found!
-            Resource rid hash is None.
+            Traceback (most recent call last):
+            NotFound: `hash_table_id` not set!
+            >>> CKAN(quiet=True).get_hash('rid')
         """
         if not self.hash_table_id:
             raise ckanapi.NotFound('`hash_table_id` not set!')
@@ -374,12 +375,12 @@ class CKAN(object):
             >>> resource = {'package_id': 'pid', 'url': url}
             >>> message = 'Creating new resource...'
             >>> ckan._update_resource(resource, message)
-            Resource "rid" was not found.
-            False
+            Package "pid" was not found.
             >>> resource.update({'resource_id': 'rid', 'name': 'name'})
             >>> resource.update({'description': 'description', 'hash': 'hash'})
             >>> message = 'Updating resource...'
             >>> ckan._update_resource(resource, message)
+            Resource "rid" was not found.
         """
         post = kwargs.pop('post', None)
         filepath = kwargs.pop('filepath', None)
@@ -406,6 +407,14 @@ class CKAN(object):
                 r = requests.post(url, **data)
             else:
                 r = self.resource_create(**data)
+        except ckanapi.NotFound:
+            # Keep exception message consistent with the others
+            if 'resource_id' in resource:
+                print('Resource "%s" was not found.' % resource['resource_id'])
+            else:
+                print('Package "%s" was not found.' % resource['package_id'])
+
+            return None
         except requests.exceptions.ConnectionError as err:
             if 'Broken pipe' in err.message[1]:
                 print('File size too large. Try uploading a smaller file.')
@@ -441,13 +450,11 @@ class CKAN(object):
 
         Examples:
             >>> ckan = CKAN(quiet=True)
-            >>> ckan.update_resource('pid')
-            Resource "rid" was not found.
-            False
-            >>> url = 'http://example.com/file'
-            >>> ckan.update_resource('pid', url=url)
-            Resource "rid" was not found.
-            False
+            >>> ckan.create_resource('pid')
+            Traceback (most recent call last):
+            TypeError: You must specify either a `url` or `filepath`
+            >>> ckan.create_resource('pid', url='http://example.com/file')
+            Package "pid" was not found.
         """
         if not kwargs.get('url') or kwargs.get('filepath'):
             raise TypeError('You must specify either a `url` or `filepath`')
