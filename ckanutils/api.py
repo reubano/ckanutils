@@ -79,7 +79,6 @@ class CKAN(object):
         self.quiet = kwargs.get('quiet')
         self.user_agent = kwargs.get('ua', default_ua)
         self.verbose = not self.quiet
-        # print('verbose', self.verbose)
         self.hash_table = kwargs.get('hash_table', DEF_HASH_TABLE)
 
         ckan_kwargs = {'apikey': self.api_key, 'user_agent': self.user_agent}
