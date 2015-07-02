@@ -106,7 +106,7 @@ class CKAN(object):
         self.revision_show = ckan.action.revision_show
 
     def create_table(self, resource_id, fields, **kwargs):
-        """Creates a datastore table.
+        """Creates a datastore table for an existing filestore resource.
 
         Args:
             resource_id (str): The filestore resource id.
@@ -138,14 +138,14 @@ class CKAN(object):
         kwargs['fields'] = fields
 
         if self.verbose:
-            print('Creating table for datastore resource %s...' % resource_id)
+            print('Creating table `%s` in datastore...' % resource_id)
 
         try:
             return self.datastore_create(**kwargs)
         except ckanapi.ValidationError as err:
             if err.error_dict.get('resource_id') == [u'Not found: Resource']:
-                raise ckanapi.NotFound(
-                    'Resource "%s" was not found.' % resource_id)
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
             else:
                 raise
 
@@ -175,7 +175,7 @@ class CKAN(object):
         kwargs['resource_id'] = resource_id
 
         if self.verbose:
-            print('Deleting table for datastore resource %s...' % resource_id)
+            print('Deleting table `%s` from datastore...' % resource_id)
 
         try:
             result = self.datastore_delete(**kwargs)
@@ -183,11 +183,13 @@ class CKAN(object):
             result = None
 
             if self.verbose:
-                print("Can't delete. Datastore table not found.")
+                print(
+                    "Can't delete. Table `%s` was not found in datastore." %
+                    resource_id)
         except ckanapi.ValidationError as err:
             if 'read-only' in err.error_dict:
                 print(
-                    "Can't delete. Datastore table is read only table. Set "
+                    "Can't delete. Datastore table is read only. Set "
                     "'force' to True and try again.")
 
                 result = None
@@ -262,7 +264,7 @@ class CKAN(object):
             str: The datastore resource hash.
 
         Raises:
-            NotFound: If `hash_table_id` isn't set.
+            NotFound: If `hash_table_id` isn't set or not in datastore.
             NotAuthorized: If unable to authorize ckan user.
 
         Examples:
@@ -293,12 +295,12 @@ class CKAN(object):
             raise NotFound({'message': message, 'item': 'datastore'})
         except IndexError:
             if self.verbose:
-                print('Resource "%s" not found in hash table.' % resource_id)
+                print('Resource `%s` was not found in hash table.' % resource_id)
 
             resource_hash = None
 
         if self.verbose:
-            print('Resource %s hash is %s.' % (resource_id, resource_hash))
+            print('Resource `%s` hash is `%s`.' % (resource_id, resource_hash))
 
         return resource_hash
 
@@ -310,7 +312,7 @@ class CKAN(object):
             **kwargs: Keyword arguments that are passed to datastore_create.
 
         Kwargs:
-            filepath (str): Output file path.
+            filepath (str): Output file path or directory.
             name_from_id (bool): Use resource id for filename.
             chunksize (int): Number of bytes to write at a time.
             user_agent (str): The user agent.
@@ -335,7 +337,8 @@ class CKAN(object):
             resource = self.resource_show(id=resource_id)
         except NotFound:
             # Keep exception message consistent with the others
-            raise ckanapi.NotFound('Resource "%s" was not found.' % resource_id)
+            raise NotFound(
+                'Resource `%s` was not found in filestore.' % resource_id)
 
         url = resource['perma_link']
 
@@ -382,7 +385,8 @@ class CKAN(object):
             hash (str): The resource hash.
 
         Returns:
-            bool: True if successful, False otherwise.
+            obj: requests.Response object if `post` option is specified,
+                ckan resource object otherwise.
 
         Examples:
             >>> ckan = CKAN(quiet=True)
@@ -425,9 +429,13 @@ class CKAN(object):
         except NotFound:
             # Keep exception message consistent with the others
             if 'resource_id' in resource:
-                print('Resource "%s" was not found.' % resource['resource_id'])
+                print(
+                    'Resource `%s` was not found in filestore.' %
+                    resource['resource_id'])
             else:
-                print('Package "%s" was not found.' % resource['package_id'])
+                print(
+                    'Package `%s` was not found in filestore.' %
+                    resource['package_id'])
 
             return None
         except requests.exceptions.ConnectionError as err:
@@ -442,8 +450,8 @@ class CKAN(object):
         return r
 
     def create_resource(self, package_id, **kwargs):
-        """Creates a single resource on filestore.
-        To create a resource, you must supply either `filepath` or `url`.
+        """Creates a single resource on filestore. You must supply either
+        `filepath` or `url`.
 
         Args:
             package_id (str): The filestore package id.
@@ -453,12 +461,13 @@ class CKAN(object):
             filepath (str): New file path (for file upload).
             url (str): New file url (for file link).
             post (bool): Post data using requests instead of ckanapi.
-            name (str): The resource name.
+            name (str): The resource name (defaults to the filename).
             description (str): The resource description.
             hash (str): The resource hash.
 
         Returns:
-            bool: True if successful, False otherwise.
+            obj: requests.Response object if `post` option is specified,
+                ckan resource object otherwise.
 
         Raises:
             TypeError: If neither `url` nor `filepath` are supplied.
@@ -494,7 +503,8 @@ class CKAN(object):
             hash (str): The resource hash.
 
         Returns:
-            bool: True if successful, False otherwise.
+            obj: requests.Response object if `post` option is specified,
+                ckan resource object otherwise.
 
         Examples:
             >>> CKAN(quiet=True).update_resource('rid')
@@ -505,8 +515,8 @@ class CKAN(object):
             resource = self.resource_show(id=resource_id)
         except NotFound:
             # Keep exception message consistent with the others
-            print('Resource "%s" was not found.' % resource_id)
-            return False
+            print('Resource `%s` was not found in filestore.' % resource_id)
+            return None
 
         resource['package_id'] = self.get_package_id(resource_id)
         message = 'Updating resource %s...' % resource_id
@@ -529,7 +539,7 @@ class CKAN(object):
             resource = self.resource_show(id=resource_id)
         except NotFound:
             # Keep exception message consistent with the others
-            print('Resource "%s" was not found.' % resource_id)
+            print('Resource `%s` was not found in filestore.' % resource_id)
             return None
         else:
             revision = self.revision_show(id=resource['revision_id'])
