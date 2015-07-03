@@ -143,8 +143,8 @@ def gen_fields(names):
         dict: The parsed field with type
 
     Examples:
-        >>> gen_fields(['date', 'raw_value', 'text'], True).next()
-        {u'type': u'date', u'id': u'date'}
+        >>> gen_fields(['date', 'raw_value', 'text']).next()
+        {u'type': u'text', u'id': u'date'}
     """
     for name in names:
         # You can't insert a empty string into a timestamp, so skip this step
