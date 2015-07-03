@@ -43,6 +43,7 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
     chunk_rows = kwargs.get('chunksize_rows')
     primary_key = kwargs.get('primary_key')
     content_type = kwargs.get('content_type')
+    type_cast = kwargs.get('type_cast')
     method = 'upsert' if primary_key else 'insert'
     create_keys = ['aliases', 'primary_key', 'indexes']
 
@@ -62,12 +63,15 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         print("Error: plugin for extension '%s' not found!" % extension)
         return False
     else:
-        records = iter(parser(filepath, encoding=kwargs.get('encoding')))
-        fields = list(utils.gen_fields(records.next().keys()))
+        records = parser(filepath, encoding=kwargs.get('encoding'))
+        fields = list(utils.gen_fields(records.next().keys(), type_cast))
 
         if verbose:
             print('Parsed fields:')
             pprint(fields)
+
+        if type_cast:
+            records = utils.gen_type_cast(records, fields)
 
         create_kwargs = {k: v for k, v in kwargs.items() if k in create_keys}
 
@@ -117,6 +121,9 @@ def update_hash_table(ckan, resource_id, resource_hash):
 @manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
+@manager.arg(
+    'type_cast', 't', help="type cast values based on field names.",
+    type=bool, default=False)
 @manager.arg(
     'force', 'f', help="update resource even if it hasn't changed.",
     type=bool, default=False)
@@ -192,6 +199,9 @@ def update(resource_id, force=None, **kwargs):
 @manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
+@manager.arg(
+    'type_cast', 't', help="type cast values based on field names.",
+    type=bool, default=False)
 @manager.command
 def upload(source, resource_id=None, **kwargs):
     """Uploads a file to a datastore table"""
