@@ -85,13 +85,13 @@ def _read_csv(f, encoding, names):
     return [r for r in rows if any(v.strip() for v in r.values())]
 
 
-def _sanitize_sheet(sheet, mode, dformat, from_fieldname=False):
+def _sanitize_sheet(sheet, mode, date_format, from_fieldname=False):
     """Formats numbers and date values (from xls/xslx file) as strings.
 
     Args:
         book (obj): `xlrd` workbook object.
         mode (str): `xlrd` workbook datemode property.
-        dformat (str): `strftime()` date format.
+        date_format (str): `strftime()` date format.
         from_fieldname (Optional[bool]): Interpret as date if 'date' is in
             fieldname even if cell type isn't `date`. Also, convert cell type
             `number` into text unless 'value' is in the fieldname
@@ -106,9 +106,9 @@ def _sanitize_sheet(sheet, mode, dformat, from_fieldname=False):
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
         >>> sheet = book.sheet_by_index(0)
-        >>> dated = _sanitize_sheet(sheet, book.datemode, '%B %d, %Y')
+        >>> dated = _sanitize_sheet(sheet, book.datemode, '%Y-%m-%d')
         >>> it.islice(dated, 5, 6).next()
-        (1, 'May 04, 1982')
+        (1, '1982-05-04')
     """
     names = [n.lower() for n in sheet.row_values(0)]
 
@@ -121,9 +121,11 @@ def _sanitize_sheet(sheet, mode, dformat, from_fieldname=False):
             # if it's a date
             if (ctype == 3) or (from_fieldname and 'date' in names[col]):
                 try:
-                    value = xldate_as_datetime(value, mode).strftime(dformat)
+                    as_date = xldate_as_datetime(value, mode)
                 except ValueError:
                     pass
+                else:
+                    value = as_date.strftime(date_format)
             # if it's a number
             elif (ctype == 2) and from_fieldname and 'value' not in names[col]:
                 value = str(value)
@@ -141,8 +143,8 @@ def gen_fields(names):
         dict: The parsed field with type
 
     Examples:
-        >>> gen_fields(['date', 'raw_value', 'text']).next()['id']
-        u'date'
+        >>> gen_fields(['date', 'raw_value', 'text']).next()
+        {u'type': u'text', u'id': u'date'}
     """
     for name in names:
         # You can't insert a empty string into a timestamp, so skip this step
@@ -254,7 +256,7 @@ def read_xls(xls_filepath, **kwargs):
 
     Kwargs:
         date_format (str): Date format passed to `strftime()` (default:
-            '%B %d, %Y').
+            '%Y-%m-%d', i.e, 'YYYY-MM-DD').
 
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
@@ -288,11 +290,11 @@ def read_xls(xls_filepath, **kwargs):
         >>> keys = sorted(rows[1].keys())
         >>> keys
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> [rows[1][k] for k in keys] == ['May 04, 1982', 234.0, \
+        >>> [rows[1][k] for k in keys] == ['1982-05-04', 234.0, \
 u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in rows[1:]]
-        ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
+        ['1982-05-04', '2015-01-01', '1995-12-31']
         >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
         >>> rows = list(read_xls(filepath))
         >>> len(rows)
@@ -300,13 +302,13 @@ u'Iñtërnâtiônàližætiøn', u'Ādam']
         >>> keys = sorted(rows[1].keys())
         >>> keys
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
-        >>> [rows[1][k] for k in keys] == ['May 04, 1982', 234.0, \
+        >>> [rows[1][k] for k in keys] == ['1982-05-04', 234.0, \
 u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in rows[1:]]
-        ['May 04, 1982', 'January 01, 2015', 'December 31, 1995']
+        ['1982-05-04', '2015-01-01', '1995-12-31']
     """
-    date_format = kwargs.get('date_format', '%B %d, %Y')
+    date_format = kwargs.get('date_format', '%Y-%m-%d')
 
     xlrd_kwargs = {
         'on_demand': kwargs.get('on_demand'),
