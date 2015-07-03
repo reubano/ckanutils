@@ -128,15 +128,46 @@ def _sanitize_sheet(sheet, mode, date_format):
 
 
 def make_float(value):
+    """Parses and formats numbers.
+
+    Args:
+        value (str): The number to parse.
+
+    Returns:
+        flt: The parsed number.
+
+    Examples:
+        >>> make_float('1')
+        1.0
+        >>> make_float('1f')
+    """
     try:
-        value = float(value.replace(',', '')) if value.strip() else None
-    except AttributeError:
-        pass
+        if value and value.strip():
+            value = float(value.replace(',', ''))
+        else:
+            value = None
+    except ValueError:
+        value = None
 
     return value
 
 
 def _make_date(value, date_format):
+    """Parses and formats date strings.
+
+    Args:
+        value (str): The date to parse.
+        date_format (str): Date format passed to `strftime()`.
+
+    Returns:
+        str: The formatted date string.
+
+    Examples:
+        >>> _make_date('5/4/82', '%Y-%m-%d')
+        ('1982-05-04', False)
+        >>> _make_date('2/32/82', '%Y-%m-%d')
+        (u'2/32/82', True)
+    """
     try:
         if value and value.strip():
             value = parse(value).strftime(date_format)
@@ -154,12 +185,27 @@ def _make_date(value, date_format):
 
 
 def make_date(value, date_format):
+    """Parses and formats date strings.
+
+    Args:
+        value (str): The date to parse.
+        date_format (str): Date format passed to `strftime()`.
+
+    Returns:
+        str: The formatted date string.
+
+    Examples:
+        >>> make_date('5/4/82', '%Y-%m-%d')
+        '1982-05-04'
+        >>> make_date('2/32/82', '%Y-%m-%d')
+        '1982-02-28'
+    """
     value, retry = _make_date(value, date_format)
 
     # Fix impossible dates, e.g., 2/31/15
     if retry:
         bad_num = [x for x in ['29', '30', '31', '32'] if x in value][0]
-        possibilities = (value.replace(bad_num, x) for x in ['30', '29', '28'])
+        possibilities = [value.replace(bad_num, x) for x in ['30', '29', '28']]
 
         for p in possibilities:
             value, retry = _make_date(p, date_format)
@@ -207,11 +253,12 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>>
         >>> casted_csv_values == casted_xls_values
         True
-        >>> casted_csv_values[0]
-        '2015-01-01'
+        >>> casted_csv_values
+        ['2015-01-01', 100.0, None, None]
     """
     make_date_p = partial(make_date, date_format=date_format)
-    switch = {'float': make_float, 'date': make_date_p, 'text': unicode}
+    make_unicode = lambda v: unicode(v) if v and v.trim() else None
+    switch = {'float': make_float, 'date': make_date_p, 'text': make_unicode}
     field_types = {f['id']: f['type'] for f in fields}
 
     for row in records:
@@ -373,7 +420,7 @@ def read_xls(xls_filepath, **kwargs):
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
         >>> row = records.next()
         >>> [row[h] for h in header] == [ \
-'1982-05-04', 234.0, u'Iñtërnâtiônàližætiøn', u'Ādam']
+'1982-05-04', u'234.0', u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
@@ -384,7 +431,7 @@ def read_xls(xls_filepath, **kwargs):
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
         >>> row = records.next()
         >>> [row[h] for h in header] == [ \
-'1982-05-04', 234.0, u'Iñtërnâtiônàližætiøn', u'Ādam']
+'1982-05-04', u'234.0', u'Iñtërnâtiônàližætiøn', u'Ādam']
         True
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
@@ -411,10 +458,7 @@ def read_xls(xls_filepath, **kwargs):
         values = [g[1] for g in group]
 
         # Remove empty rows
-        try:
-            if any(v.strip() for v in values):
-                yield dict(zip(names, values))
-        except AttributeError:
+        if any(v and v.strip() for v in values):
             yield dict(zip(names, values))
 
 
