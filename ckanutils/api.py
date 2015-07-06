@@ -134,7 +134,7 @@ class CKAN(object):
         >>> CKAN(quiet=True).create_table('rid', fields=[{'id': 'field', \
 'type': 'text'}])
         Traceback (most recent call last):
-        NotFound: Resource "rid" was not found.
+        NotFound: Resource `rid` was not found in filestore.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
@@ -224,7 +224,7 @@ class CKAN(object):
         Examples:
             >>> CKAN(quiet=True).insert_records('rid', [{'field': 'value'}])
             Traceback (most recent call last):
-            NotFound: Resource "rid" was not found.
+            NotFound: Resource `rid` was not found in filestore.
         """
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
@@ -253,6 +253,11 @@ class CKAN(object):
                     return 0
                 else:
                     raise err
+            except NotFound:
+                # Keep exception message consistent with the others
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+
             count += length
 
         return count
@@ -271,17 +276,17 @@ class CKAN(object):
             NotAuthorized: If unable to authorize ckan user.
 
         Examples:
-            >>> CKAN(hash_table='hash').get_hash('rid')
+            >>> CKAN(hash_table='hash_jhb34rtj34t').get_hash('rid')
             Traceback (most recent call last):
-            NotFound: `hash_table_id` not set!
-            >>> CKAN(quiet=True).get_hash('rid')
+            NotFound: {u'item': u'package', u'message': u'Package \
+`hash_jhb34rtj34t` was not found!'}
         """
         if not self.hash_table_pack:
-            message = 'No hash table package found!'
+            message = 'Package `%s` was not found!' % self.hash_table
             raise NotFound({'message': message, 'item': 'package'})
 
         if not self.hash_table_id:
-            message = 'No hash table resource found!'
+            message = 'No resources found in package `%s`!' % self.hash_table
             raise NotFound({'message': message, 'item': 'resource'})
 
         kwargs = {
@@ -334,7 +339,7 @@ class CKAN(object):
         Examples:
             >>> CKAN(quiet=True).fetch_resource('rid')
             Traceback (most recent call last):
-            NotFound: Resource "rid" was not found.
+            NotFound: Resource `rid` was not found in filestore.
         """
         user_agent = kwargs.pop('user_agent', self.user_agent)
         filepath = kwargs.pop('filepath', utils.get_temp_filepath())
@@ -402,12 +407,12 @@ class CKAN(object):
             >>> resource = {'package_id': 'pid', 'url': url}
             >>> message = 'Creating new resource...'
             >>> ckan._update_resource(resource, message)
-            Package "pid" was not found.
+            Package `pid` was not found.
             >>> resource.update({'resource_id': 'rid', 'name': 'name'})
             >>> resource.update({'description': 'description', 'hash': 'hash'})
             >>> message = 'Updating resource...'
             >>> ckan._update_resource(resource, message)
-            Resource "rid" was not found.
+            Resource `rid` was not found in filestore.
         """
         post = kwargs.pop('post', None)
         filepath = kwargs.pop('filepath', None)
@@ -442,9 +447,7 @@ class CKAN(object):
                     'Resource `%s` was not found in filestore.' %
                     resource['resource_id'])
             else:
-                print(
-                    'Package `%s` was not found in filestore.' %
-                    resource['package_id'])
+                print('Package `%s` was not found.' % resource['package_id'])
 
             return None
         except requests.exceptions.ConnectionError as err:
@@ -488,7 +491,7 @@ class CKAN(object):
             Traceback (most recent call last):
             TypeError: You must specify either a `url` or `filepath`
             >>> ckan.create_resource('pid', url='http://example.com/file')
-            Package "pid" was not found.
+            Package `pid` was not found.
         """
         if not {'url', 'filepath', 'fileobj'}.intersection(kwargs.keys()):
             raise TypeError(
@@ -523,8 +526,7 @@ class CKAN(object):
 
         Examples:
             >>> CKAN(quiet=True).update_resource('rid')
-            Resource "rid" was not found.
-            False
+            Resource `rid` was not found in filestore.
         """
         try:
             resource = self.resource_show(id=resource_id)
@@ -548,7 +550,7 @@ class CKAN(object):
 
         Examples:
             >>> CKAN(quiet=True).get_package_id('rid')
-            Resource "rid" was not found.
+            Resource `rid` was not found in filestore.
         """
         try:
             resource = self.resource_show(id=resource_id)
