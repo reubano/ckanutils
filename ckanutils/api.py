@@ -480,9 +480,12 @@ class CKAN(object):
             >>> ckan.create_resource('pid', url='http://example.com/file')
             Package "pid" was not found.
         """
-        if not kwargs.get('url') or kwargs.get('filepath'):
+        if not (kwargs.get('url') or kwargs.get('filepath')):
             raise TypeError('You must specify either a `url` or `filepath`')
 
+        path = kwargs.get('url') or kwargs.get('filepath')
+        kwargs['name'] = kwargs.get('name', p.basename(path))
+        kwargs['format'] = p.splitext(path)[1]
         resource = {'package_id': package_id}
         message = 'Creating new resource in package %s...' % package_id
         return self._update_resource(resource, message, **kwargs)
