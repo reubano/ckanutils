@@ -108,7 +108,7 @@ def update_hash_table(ckan, resource_id, resource_hash):
     api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
 @manager.arg(
     'hash_table', 'H', help='the hash table package id',
-    default=api.DEF_HASH_TABLE)
+    default=api.DEF_HASH_PACK)
 @manager.arg(
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV, api.DEF_USER_AGENT))
@@ -154,7 +154,7 @@ def update(resource_id, force=None, **kwargs):
             if item in {'package', 'resource'}:
                 fileobj = StringIO()
                 fileobj.write('datastore_id,hash\n')
-                create_kwargs = {'fileobj': fileobj, 'name': 'hash-table.csv'}
+                create_kwargs = {'fileobj': fileobj, 'name': api.DEF_HASH_RES}
                 ckan.create_resource(kwargs['hash_table'], **create_kwargs)
                 ckan.hash_table_id = ckan.hash_table_pack['resources'][0]['id']
 

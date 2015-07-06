@@ -32,7 +32,8 @@ API_KEY_ENV = 'CKAN_API_KEY'
 REMOTE_ENV = 'CKAN_REMOTE_URL'
 UA_ENV = 'CKAN_USER_AGENT'
 DEF_USER_AGENT = 'ckanutils/%s' % version
-DEF_HASH_TABLE = 'hash-table'
+DEF_HASH_PACK = 'hash-table'
+DEF_HASH_RES = 'hash-table.csv'
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
 
@@ -80,7 +81,7 @@ class CKAN(object):
         self.quiet = kwargs.get('quiet')
         self.user_agent = kwargs.get('ua', default_ua)
         self.verbose = not self.quiet
-        self.hash_table = kwargs.get('hash_table', DEF_HASH_TABLE)
+        self.hash_table = kwargs.get('hash_table', DEF_HASH_PACK)
 
         ckan_kwargs = {'apikey': self.api_key, 'user_agent': self.user_agent}
         attr = 'RemoteCKAN' if remote else 'LocalCKAN'
