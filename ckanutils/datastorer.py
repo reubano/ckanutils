@@ -12,6 +12,7 @@ import traceback
 import sys
 
 from pprint import pprint
+from StringIO import StringIO
 from os import unlink, environ, path as p
 from manager import Manager
 from xattr import xattr
@@ -151,8 +152,9 @@ def update(resource_id, force=None, **kwargs):
                 ckan.hash_table_pack = ckan.create_package(kwargs['hash_table'])
 
             if item in {'package', 'resource'}:
-                parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
-                create_kwargs = {'filepath': p.join(parent_dir, 'data', 'test.cvs'), 'name': 'hash-table.csv'}
+                fileobj = StringIO()
+                fileobj.write('datastore_id,hash\n')
+                create_kwargs = {'fileobj': fileobj, 'name': 'hash-table.csv'}
                 ckan.create_resource(kwargs['hash_table'], **create_kwargs)
                 ckan.hash_table_id = ckan.hash_table_pack['resources'][0]['id']
 

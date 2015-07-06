@@ -377,17 +377,19 @@ class CKAN(object):
 
     def _update_resource(self, resource, message, **kwargs):
         """Helps create or update a single resource on filestore.
-        To create a resource, you must supply either `filepath` or `url`.
+        To create a resource, you must supply either `url`, `filepath`, or
+        `fileobj`.
 
         Args:
             resource (dict): The resource passed to resource_create.
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
+            url (str): New file url (for file link).
+            fileobj (obj): New file like object (for file upload).
+            filepath (str): New file path (for file upload).
             post (bool): Post data using requests instead of ckanapi.
             name (str): The resource name.
-            filepath (str): New file path (for file upload).
-            url (str): New file url (for file link).
             description (str): The resource description.
             hash (str): The resource hash.
 
@@ -410,7 +412,8 @@ class CKAN(object):
         """
         post = kwargs.pop('post', None)
         filepath = kwargs.pop('filepath', None)
-        f = open(filepath, 'rb') if filepath else None
+        fileobj = kwargs.pop('fileobj', None)
+        f = open(filepath, 'rb') if filepath else fileobj
         resource.update(kwargs)
 
         if self.verbose:
@@ -458,15 +461,16 @@ class CKAN(object):
 
     def create_resource(self, package_id, **kwargs):
         """Creates a single resource on filestore. You must supply either
-        `filepath` or `url`.
+        `url`, `filepath`, or `fileobj`.
 
         Args:
             package_id (str): The filestore package id.
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
-            filepath (str): New file path (for file upload).
             url (str): New file url (for file link).
+            filepath (str): New file path (for file upload).
+            fileobj (obj): New file like object (for file upload).
             post (bool): Post data using requests instead of ckanapi.
             name (str): The resource name (defaults to the filename).
             description (str): The resource description.
@@ -477,7 +481,7 @@ class CKAN(object):
                 ckan resource object otherwise.
 
         Raises:
-            TypeError: If neither `url` nor `filepath` are supplied.
+            TypeError: If neither `url`, `filepath`, nor `fileobj` are supplied.
 
         Examples:
             >>> ckan = CKAN(quiet=True)
@@ -487,8 +491,9 @@ class CKAN(object):
             >>> ckan.create_resource('pid', url='http://example.com/file')
             Package "pid" was not found.
         """
-        if not (kwargs.get('url') or kwargs.get('filepath')):
-            raise TypeError('You must specify either a `url` or `filepath`')
+        if not {'url', 'filepath', 'fileobj'}.intersection(kwargs.keys()):
+            raise TypeError(
+                'You must specify either a `url`, `filepath`, or `fileobj`')
 
         path = kwargs.get('url') or kwargs.get('filepath')
         kwargs['name'] = kwargs.get('name', p.basename(path))
@@ -505,10 +510,11 @@ class CKAN(object):
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
+            url (str): New file url (for file link).
+            filepath (str): New file path (for file upload).
+            fileobj (obj): New file like object (for file upload).
             post (bool): Post data using requests instead of ckanapi.
             name (str): The resource name.
-            filepath (str): New file path (for file upload).
-            url (str): New file url (for file link).
             description (str): The resource description.
             hash (str): The resource hash.
 
