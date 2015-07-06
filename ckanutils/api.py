@@ -89,11 +89,14 @@ class CKAN(object):
         self.address = ckan.address
 
         try:
-            hash_table_pack = ckan.action.package_show(id=self.hash_table)
+            self.hash_table_pack = ckan.action.package_show(id=self.hash_table)
         except NotFound:
+            self.hash_table_pack = None
+
+        try:
+            self.hash_table_id = self.hash_table_pack['resources'][0]['id']
+        except (IndexError, TypeError):
             self.hash_table_id = None
-        else:
-            self.hash_table_id = hash_table_pack['resources'][0]['id']
 
         # shortcuts
         self.datastore_search = ckan.action.datastore_search
@@ -273,9 +276,13 @@ class CKAN(object):
             NotFound: `hash_table_id` not set!
             >>> CKAN(quiet=True).get_hash('rid')
         """
-        if not self.hash_table_id:
-            message = '`hash_table_id` not set!'
+        if not self.hash_table_pack:
+            message = 'No hash table package found!'
             raise NotFound({'message': message, 'item': 'package'})
+
+        if not self.hash_table_id:
+            message = 'No hash table resource found!'
+            raise NotFound({'message': message, 'item': 'resource'})
 
         kwargs = {
             'resource_id': self.hash_table_id,

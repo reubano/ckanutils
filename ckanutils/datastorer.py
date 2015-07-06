@@ -137,7 +137,6 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-        # r, filepath = (1,2)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
@@ -146,9 +145,16 @@ def update(resource_id, force=None, **kwargs):
         try:
             old_hash = ckan.get_hash(resource_id)
         except api.NotFound as err:
-            if err.args[0]['item'] == 'package':
-                ckan.create_package(kwargs['hash_table'])
-                ckan.create_resource(kwargs['hash_table'])
+            item = err.args[0]['item']
+
+            if item == 'package':
+                ckan.hash_table_pack = ckan.create_package(kwargs['hash_table'])
+
+            if item in {'package', 'resource'}:
+                parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
+                create_kwargs = {'filepath': p.join(parent_dir, 'data', 'test.cvs'), 'name': 'hash-table.csv'}
+                ckan.create_resource(kwargs['hash_table'], **create_kwargs)
+                ckan.hash_table_id = ckan.hash_table_pack['resources'][0]['id']
 
             create_hash_table(ckan, verbose)
             old_hash = ckan.get_hash(resource_id)
