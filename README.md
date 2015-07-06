@@ -7,11 +7,12 @@ CKAN Utils is a [Python library](#library) and [command line interface](#cli) fo
 With CKAN Utils, you can
 
 - Download a CKAN resource
-- Parse structured CSV/Excel files and push them into a CKAN DataStore
+- Parse structured CSV/XLS/XLSX files and push them into a CKAN DataStore
+- Copy a filestore resource from one ckan instance to another
+- Read and write Uñicôdë text
+- and much more...
 
-If you have configured a [`hash_table_id`](#hash-table) in your CKAN instance, CKAN Utils will compute the hash of a file and only update the datastore if the file has changed.
-
-This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
+CKAN Utils performs smart updates by computing the hash of a file and will only update the datastore if the file has changed. This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
 
 ## Requirements
 
@@ -56,14 +57,16 @@ optional arguments:
 
 available commands:
   ver                      Show ckanny version
-
+  
   [ds]
-    delete                 Delete a datastore table
-    update                 Update a datastore table based on the current filestore resource
-    upload                 Upload a file to a datastore table
-
+    delete                 Deletes a datastore table
+    update                 Updates a datastore table based on the current filestore resource
+    upload                 Uploads a file to a datastore table
+  
   [fs]
-    fetch                  Download a filestore resource
+    fetch                  Downloads a filestore resource
+    migrate                Copies a filestore resource from one ckan instance to another
+    upload                 Uploads a file to the filestore of an existing resource
 ```
 
 *show version*
@@ -80,11 +83,12 @@ available commands:
 
 
 ```bash
-usage: ckanny fs.fetch [-h] [-q] [-C CHUNKSIZE_BYTES] [-c CHUNKSIZE_ROWS]
-                       [-u UA] [-k API_KEY] [-r REMOTE] [-d DESTINATION]
-                       [resource_id]
+usage: ckanny fs.fetch
+       [-h] [-q] [-n] [-c CHUNKSIZE_BYTES] [-u UA] [-k API_KEY] [-r REMOTE]
+       [-d DESTINATION]
+       [resource_id]
 
-Download a filestore resource
+Downloads a filestore resource
 
 positional arguments:
   resource_id           the resource id
@@ -92,21 +96,21 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -q, --quiet           suppress debug statements
-  -C CHUNKSIZE_BYTES, --chunksize-bytes CHUNKSIZE_BYTES
+  -n, --name-from-id    Use resource id for filename
+  -c CHUNKSIZE_BYTES, --chunksize-bytes CHUNKSIZE_BYTES
                         number of bytes to read/write at a time (default:
                         1048576)
-  -c CHUNKSIZE_ROWS, --chunksize-rows CHUNKSIZE_ROWS
-                        number of rows to write at a time (default: 1000)
   -u UA, --ua UA        the user agent (uses `CKAN_USER_AGENT` ENV if
-                        available) (default: '')
+                        available) (default: None)
   -k API_KEY, --api-key API_KEY
                         the api key (uses `CKAN_API_KEY` ENV if available)
-                        (default: '')
+                        (default: None)
   -r REMOTE, --remote REMOTE
                         the remote ckan url (uses `CKAN_REMOTE_URL` ENV if
-                        available) (default: '')
+                        available) (default: None)
   -d DESTINATION, --destination DESTINATION
-                        the destination folder or file path (default: .)
+                        the destination folder or file path (default:
+                        .)
 ```
 
 ## Library
@@ -120,18 +124,18 @@ CKAN Utils may also be used directly from Python.
 ```python
 from ckanutils import api
 
-kwargs = {'filepath': '~/test.csv', 'api_key': 'mykey', 'remote': 'http://demo.ckan.org'}
-ckan = api.CKAN(**kwargs)
-r, filepath = ckan.fetch_resource('36f33846-cb43-438e-95fd-f518104a32ed')
+kwargs = {'api_key': 'mykey', 'remote': 'http://demo.ckan.org'}
+resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
+r, filepath = ckan.fetch_resource(resource_id, filepath='test.csv')
 print(r.encoding)
 ```
 
 *Fetch a local resource*
 
 ```python
-kwargs = {'filepath': '~/test.csv', 'api_key': 'mykey', 'remote': None}
-ckan = api.CKAN(**kwargs)
-r, filepath = ckan.fetch_resource('36f33846-cb43-438e-95fd-f518104a32ed')
+ckan = api.CKAN(api_key='mykey', remote=None)
+resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
+r, filepath = ckan.fetch_resource(resource_id, filepath='test.csv')
 print(r.encoding)
 ```
 
@@ -142,20 +146,33 @@ CKAN Utils will use the following [Environment Variables](http://www.cyberciti.b
 Environment Variable|Description
 --------------------|-----------
 CKAN_API_KEY|Your CKAN API Key
-CKAN_HASH_TABLE_ID|Your CKAN instance hash table resource id
 CKAN_REMOTE_URL|Your CKAN instance remote url
 CKAN_USER_AGENT|Your user agent
 
 ## Hash Table
 
-In order to enable file hashing, you must first load a csv to the filestore with the following structure:
+In order to support file hashing, ckanutils creates a hash table resource called `hash_table.csv` with the following schema:
 
-datastore_id|hash
-------------|----
-|
+field|type
+------|----
+datastore_id|text
+hash|text
 
-Get the table's `resource_id` and use it to set the `CKAN_HASH_TABLE_ID` environment variable.
-Optionally, you can use the `resource_id` in the command line as the `--hash-table-id` option, or in a Python file as the `hash_table_id` keyword argument to `api.CKAN`.
+By default the hash table resource will be placed the package `hash_table`. CKAN Utils will create this package if it doesn't exist. Optionally, you can set the hash table package in the command line with the `-H, --hash-table` option, or in a Python file as the `hash_table` keyword argument to `api.CKAN`.
+
+Examples:
+
+*via the CLI*
+
+    ckanny ds.update -H custom_hash_table 36f33846-cb43-438e-95fd-f518104a32ed
+
+*via a python file*
+
+```python
+from ckanutils import api
+ckan = api.CKAN(hash_table='custom_hash_table')
+hash = ckan.get_hash('36f33846-cb43-438e-95fd-f518104a32ed')
+```
 
 ## Scripts
 
