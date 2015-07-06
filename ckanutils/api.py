@@ -311,6 +311,7 @@ class CKAN(object):
 
         Kwargs:
             filepath (str): Output file path.
+            name_from_id (bool): Use resource id for filename.
             chunksize (int): Number of bytes to write at a time.
             user_agent (str): The user agent.
 
@@ -327,6 +328,8 @@ class CKAN(object):
         """
         user_agent = kwargs.pop('user_agent', self.user_agent)
         filepath = kwargs.pop('filepath', utils.get_temp_filepath())
+        name_from_id = kwargs.pop('name_from_id', False)
+        isdir = p.isdir(filepath)
 
         try:
             resource = self.resource_show(id=resource_id)
@@ -339,16 +342,26 @@ class CKAN(object):
         if self.verbose:
             print('Downloading url %s...' % url)
 
-        if p.isdir(filepath):
-            basename = p.basename(url)
-
-            if basename.startswith('export?format='):
-                basename = '%s.%s' % (resource_id, basename.split('=')[1])
-
-            filepath = p.join(filepath, basename)
-
         headers = {'User-Agent': user_agent}
         r = requests.get(url, stream=True, headers=headers)
+        h = r.headers
+
+        if isdir and not name_from_id:
+            try:
+                filename = h['content-disposition'].split('=')[1].split('"')[1]
+            except (KeyError, IndexError) as e:
+                filename = p.basename(url)
+        elif isdir:
+            filename = resource_id
+
+        if isdir and filename.startswith('export?format='):
+            filename = '%s.%s' % (resource_id, filename.split('=')[1])
+        elif isdir and '.' not in filename:
+            filename = '%s.%s' % (filename, utils.ctype2ext(h['content-type']))
+
+        if isdir:
+            filepath = p.join(filepath, filename)
+
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
 

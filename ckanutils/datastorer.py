@@ -46,11 +46,9 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         extension = p.splitext(filepath)[1].split('.')[1]
     # no file extension given, e.g., a tempfile
     except IndexError:
-        extension = content_type.split('/')[1]
+        extension = utils.ctype2ext(content_type)
 
-    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    switch = {'xls': 'read_xls', 'csv': 'read_csv', 'xlsx': 'read_xls'}
-    switch[xlsx_type] = 'read_xls'
+    switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
 
     try:
         parser = getattr(utils, switch[extension])

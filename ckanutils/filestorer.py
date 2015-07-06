@@ -37,6 +37,9 @@ manager = Manager()
     'chunksize_bytes', 'c', help='number of bytes to read/write at a time',
     type=int, default=api.CHUNKSIZE_BYTES)
 @manager.arg(
+    'name_from_id', 'n', help='Use resource id for filename', type=bool,
+    default=False)
+@manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
 def fetch(resource_id, **kwargs):
@@ -45,7 +48,8 @@ def fetch(resource_id, **kwargs):
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     fetch_kwargs = {
         'filepath': kwargs['destination'],
-        'chunksize': kwargs['chunksize_bytes']
+        'chunksize': kwargs['chunksize_bytes'],
+        'name_from_id': kwargs['name_from_id'],
     }
 
     try:
