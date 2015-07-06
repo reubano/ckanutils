@@ -122,6 +122,8 @@ def migrate(resource_id, **kwargs):
 
         if resource and verbose:
             print('Success! Resource %s updated.' % resource_id)
+        else:
+            sys.exit('Error uploading file!')
     finally:
         if verbose:
             print('Removing tempfile...')
@@ -178,6 +180,8 @@ def upload(source, resource_id=None, package_id=None, **kwargs):
         print('Success! Resource %s created.' % resource['id'])
     elif resource and verbose:
         print('Success! Resource %s updated.' % resource_id)
+    else:
+        sys.exit('Error uploading file!')
 
 
 if __name__ == '__main__':
