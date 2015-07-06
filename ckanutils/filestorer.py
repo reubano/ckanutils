@@ -132,7 +132,10 @@ def migrate(resource_id, **kwargs):
 @manager.arg(
     'source', help='the source file path', nargs='?', default=sys.stdin)
 @manager.arg(
-    'resource_id', 'R', help='the resource id (default: source file name)')
+    'resource_id', 'R', help=('the resource id to update (default: source file'
+        ' name)'))
+@manager.arg(
+    'package_id', 'p', help='the package id (used to create a new resource)')
 @manager.arg(
     'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
     api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
@@ -145,13 +148,17 @@ def migrate(resource_id, **kwargs):
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
-def upload(source, resource_id=None, **kwargs):
-    """Uploads a file to the filestore of an existing resource"""
+def upload(source, resource_id=None, package_id=None, **kwargs):
+    """Updates the filestore of an existing resource or creates a new one"""
     verbose = not kwargs['quiet']
     resource_id = resource_id or p.splitext(p.basename(source))[0]
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
-    if verbose:
+    if package_id and verbose:
+        print(
+            'Creating filestore resource %s in dataset %s...' %
+            (source, package_id))
+    elif verbose:
         print(
             'Uploading %s to filestore resource %s...' % (source, resource_id))
 
@@ -161,11 +168,16 @@ def upload(source, resource_id=None, **kwargs):
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
+
+    if package_id:
+        resource = ckan.create_resource(package_id, filepath=source)
     else:
         resource = ckan.update_resource(resource_id, filepath=source)
 
-        if resource and verbose:
-            print('Success! Resource %s updated.' % resource_id)
+    if package_id and resource and verbose:
+        print('Success! Resource %s created.' % resource['id'])
+    elif resource and verbose:
+        print('Success! Resource %s updated.' % resource_id)
 
 
 if __name__ == '__main__':
