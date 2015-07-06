@@ -219,11 +219,17 @@ def make_date(value, date_format):
 
 
 def ctype2ext(content_type):
-    ctype = content_type.split('/')[1]
+    ctype = content_type.split('/')[1].split(';')[0]
     xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     switch = {'xls': 'xls', 'csv': 'csv'}
     switch[xlsx_type] = 'xlsx'
-    return switch[ctype]
+
+    if ctype not in switch:
+        print(
+            'Content-Type %s not found in dictionary. Using default value.'
+            % ctype)
+
+    return switch.get(ctype, 'csv')
 
 
 def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
@@ -369,10 +375,15 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
     """
     with open(csv_filepath, mode) as f:
         encoding = kwargs.pop('encoding', ENCODING)
+        sanitize = kwargs.pop('sanitize', False)
         header = csv.reader(f, encoding=encoding, **kwargs).next()
 
-        # Slugify field names and remove empty columns
-        names = [slugify(n, separator='_') for n in header if n.strip()]
+        # Remove empty columns
+        names = [name for name in header if name.strip()]
+
+        # Underscorify field names
+        if sanitize:
+            names = [slugify(name, separator='_') for name in names]
 
         try:
             records = _read_csv(f, encoding, names)

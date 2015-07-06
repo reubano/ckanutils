@@ -107,7 +107,9 @@ class CKAN(object):
         self.datastore_search = ckan.action.datastore_search
         self.resource_show = ckan.action.resource_show
         self.resource_create = ckan.action.resource_create
+        self.package_create = ckan.action.package_create
         self.revision_show = ckan.action.revision_show
+        self.organization_list = ckan.action.organization_list_for_user
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table for an existing filestore resource.
@@ -494,13 +496,22 @@ class CKAN(object):
             >>> ckan.create_resource('pid', url='http://example.com/file')
             Package `pid` was not found.
         """
-        if not {'url', 'filepath', 'fileobj'}.intersection(kwargs.keys()):
+        if not any(map(kwargs.get, ['url', 'filepath', 'fileobj'])):
             raise TypeError(
                 'You must specify either a `url`, `filepath`, or `fileobj`')
 
-        path = kwargs.get('url') or kwargs.get('filepath')
-        kwargs['name'] = kwargs.get('name', p.basename(path))
-        kwargs['format'] = p.splitext(path)[1]
+        path = filter(None, map(kwargs.get, ['url', 'filepath', 'fileobj']))[0]
+
+        try:
+            def_name = p.basename(path)
+        except AttributeError:
+            def_name = None
+            file_format = 'csv'
+        else:
+            file_format = p.splitext(path)[1]
+
+        kwargs['name'] = kwargs.get('name', def_name)
+        kwargs['format'] = file_format
         resource = {'package_id': package_id}
         message = 'Creating new resource in package %s...' % package_id
         return self._update_resource(resource, message, **kwargs)

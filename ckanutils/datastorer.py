@@ -110,6 +110,9 @@ def update_hash_table(ckan, resource_id, resource_hash):
     'hash_table', 'H', help='the hash table package id',
     default=api.DEF_HASH_PACK)
 @manager.arg(
+    'hash_group', 'g', help="the hash table's owning organization",
+    default='HDX')
+@manager.arg(
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV, api.DEF_USER_AGENT))
 @manager.arg(
@@ -138,9 +141,14 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
+    except api.NotFound as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        filepath = None
+        sys.exit(1)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
+        filepath = None
         sys.exit(1)
     else:
         try:
@@ -149,14 +157,28 @@ def update(resource_id, force=None, **kwargs):
             item = err.args[0]['item']
 
             if item == 'package':
-                ckan.hash_table_pack = ckan.create_package(kwargs['hash_table'])
+                orgs = ckan.organization_list(permission='admin_group')
+                owner_org = (
+                    o['id'] for o in orgs
+                    if o['display_name'] == kwargs['hash_group']).next()
+
+                package_kwargs = {
+                    'name': kwargs['hash_table'],
+                    'owner_org': owner_org,
+                    'package_creator': 'Hash Table',
+                    'dataset_source': 'Multiple sources',
+                    'notes': 'Datastore resource hash table'
+                }
+
+                ckan.hash_table_pack = ckan.package_create(**package_kwargs)
 
             if item in {'package', 'resource'}:
                 fileobj = StringIO()
                 fileobj.write('datastore_id,hash\n')
                 create_kwargs = {'fileobj': fileobj, 'name': api.DEF_HASH_RES}
-                ckan.create_resource(kwargs['hash_table'], **create_kwargs)
-                ckan.hash_table_id = ckan.hash_table_pack['resources'][0]['id']
+                table = kwargs['hash_table']
+                resource = ckan.create_resource(table, **create_kwargs)
+                ckan.hash_table_id = resource['id']
 
             create_hash_table(ckan, verbose)
             old_hash = ckan.get_hash(resource_id)
@@ -184,10 +206,10 @@ def update(resource_id, force=None, **kwargs):
             traceback.print_exc(file=sys.stdout)
             sys.exit(1)
     finally:
-        if verbose:
+        if filepath and verbose:
             print('Removing tempfile...')
 
-        unlink(filepath)
+        unlink(filepath) if filepath else None
 
 
 @manager.arg(
