@@ -302,7 +302,8 @@ class CKAN(object):
             raise NotFound({'message': message, 'item': 'datastore'})
         except IndexError:
             if self.verbose:
-                print('Resource `%s` was not found in hash table.' % resource_id)
+                print(
+                    'Resource `%s` was not found in hash table.' % resource_id)
 
             resource_hash = None
 
@@ -359,7 +360,7 @@ class CKAN(object):
         if isdir and not name_from_id:
             try:
                 filename = h['content-disposition'].split('=')[1].split('"')[1]
-            except (KeyError, IndexError) as e:
+            except (KeyError, IndexError):
                 filename = p.basename(url)
         elif isdir:
             filename = resource_id
@@ -369,9 +370,7 @@ class CKAN(object):
         elif isdir and '.' not in filename:
             filename = '%s.%s' % (filename, utils.ctype2ext(h['content-type']))
 
-        if isdir:
-            filepath = p.join(filepath, filename)
-
+        filepath = p.join(filepath, filename) if isdir else filepath
         utils.write_file(filepath, r, **kwargs)
         return (r, filepath)
 
