@@ -218,6 +218,14 @@ def make_date(value, date_format):
     return value
 
 
+def ctype2ext(content_type):
+    ctype = content_type.split('/')[1]
+    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    switch = {'xls': 'xls', 'csv': 'csv'}
+    switch[xlsx_type] = 'xlsx'
+    return switch[ctype]
+
+
 def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
     """Casts record entries based on field types.
 

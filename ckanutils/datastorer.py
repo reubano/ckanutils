@@ -12,6 +12,7 @@ import traceback
 import sys
 
 from pprint import pprint
+from StringIO import StringIO
 from os import unlink, environ, path as p
 from manager import Manager
 from xattr import xattr
@@ -21,19 +22,14 @@ from . import api
 manager = Manager()
 
 
-def get_message(unchanged, force, old_hash):
-    needs_update = not unchanged
-
+def get_message(unchanged, force):
     if unchanged and not force:
         message = 'No new data found. Not updating datastore.'
     elif unchanged and force:
         message = 'No new data found, but update forced.'
         message += ' Updating datastore...'
-    elif needs_update and old_hash:
+    elif not unchanged:
         message = 'New data found. Updating datastore...'
-    elif not old_hash:
-        message = '`hash_table_id` not set or table not found.'
-        message += ' Updating datastore...'
 
     return message
 
@@ -51,16 +47,14 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         extension = p.splitext(filepath)[1].split('.')[1]
     # no file extension given, e.g., a tempfile
     except IndexError:
-        extension = content_type.split('/')[1]
+        extension = utils.ctype2ext(content_type)
 
-    xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    switch = {'xls': 'read_xls', 'csv': 'read_csv', 'xlsx': 'read_xls'}
-    switch[xlsx_type] = 'read_xls'
+    switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
 
     try:
         parser = getattr(utils, switch[extension])
     except IndexError:
-        print("Error: plugin for extension '%s' not found!" % extension)
+        print('Error: plugin for extension `%s` not found!' % extension)
         return False
     else:
         records = parser(filepath, encoding=kwargs.get('encoding'))
@@ -84,8 +78,8 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         return True
 
 
-def update_hash_table(ckan, resource_id, resource_hash):
-    create_kwargs = {
+def create_hash_table(ckan, verbose):
+    kwargs = {
         'resource_id': ckan.hash_table_id,
         'fields': [
             {'id': 'datastore_id', 'type': 'text'},
@@ -93,7 +87,13 @@ def update_hash_table(ckan, resource_id, resource_hash):
         'primary_key': 'datastore_id'
     }
 
-    ckan.create_table(**create_kwargs)
+    if verbose:
+        print('Creating hash table')
+
+    ckan.create_table(**kwargs)
+
+
+def update_hash_table(ckan, resource_id, resource_hash):
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
     ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
@@ -107,11 +107,11 @@ def update_hash_table(ckan, resource_id, resource_hash):
     'api_key', 'k', help='the api key (uses `%s` ENV if available)' %
     api.API_KEY_ENV, default=environ.get(api.API_KEY_ENV))
 @manager.arg(
-    'hash_table_id', 'H', help=('the hash table resource id (uses `%s` ENV if '
-    'available)' % api.HASH_TABLE_ENV), default=environ.get(api.HASH_TABLE_ENV))
+    'hash_table', 'H', help='the hash table package id',
+    default=api.DEF_HASH_TABLE)
 @manager.arg(
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
-    default=environ.get(api.UA_ENV))
+    default=environ.get(api.UA_ENV, api.DEF_USER_AGENT))
 @manager.arg(
     'chunksize_rows', 'c', help='number of rows to write at a time',
     type=int, default=api.CHUNKSIZE_ROWS)
@@ -138,20 +138,34 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-        old_hash = ckan.get_hash(resource_id) if ckan.hash_table_id else None
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
     else:
-        if old_hash:
-            new_hash = utils.hash_file(filepath, **hash_kwargs)
-            unchanged = new_hash == old_hash
-        else:
-            unchanged = None
+        try:
+            old_hash = ckan.get_hash(resource_id)
+        except api.NotFound as err:
+            item = err.args[0]['item']
+
+            if item == 'package':
+                ckan.hash_table_pack = ckan.create_package(kwargs['hash_table'])
+
+            if item in {'package', 'resource'}:
+                fileobj = StringIO()
+                fileobj.write('datastore_id,hash\n')
+                create_kwargs = {'fileobj': fileobj, 'name': 'hash-table.csv'}
+                ckan.create_resource(kwargs['hash_table'], **create_kwargs)
+                ckan.hash_table_id = ckan.hash_table_pack['resources'][0]['id']
+
+            create_hash_table(ckan, verbose)
+            old_hash = ckan.get_hash(resource_id)
+
+        new_hash = utils.hash_file(filepath, **hash_kwargs)
+        unchanged = new_hash == old_hash if old_hash else False
 
         if verbose:
-            print(get_message(unchanged, force, old_hash))
+            print(get_message(unchanged, force))
 
         if unchanged and not force:
             sys.exit(0)
@@ -163,7 +177,7 @@ def update(resource_id, force=None, **kwargs):
         if updated and verbose:
             print('Success! Resource %s updated.' % resource_id)
 
-        if updated and not unchanged and old_hash:
+        if updated and not unchanged:
             update_hash_table(ckan, resource_id, new_hash)
         elif not updated:
             sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
