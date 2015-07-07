@@ -184,7 +184,7 @@ CKAN Utils comes with a built in task manager `manage.py` and a `Makefile`.
 
 ### Examples
 
-*Run python linter and noses tests*
+*Run python linter and nose tests*
 
 ```bash
 manage lint

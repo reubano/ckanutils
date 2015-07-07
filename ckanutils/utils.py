@@ -352,7 +352,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         dict: A csv row.
 
     Raises:
-        NotFound: If unable to the resource.
+        NotFound: If unable to find the resource.
 
     Examples:
         >>> from os import unlink, path as p
@@ -424,7 +424,7 @@ def read_xls(xls_filepath, **kwargs):
         dict: An xls row.
 
     Raises:
-        NotFound: If unable to the resource.
+        NotFound: If unable to find the resource.
 
     Examples:
         >>> from os import unlink, path as p
