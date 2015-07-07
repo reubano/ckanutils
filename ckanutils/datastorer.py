@@ -57,7 +57,12 @@ def update_resource(ckan, resource_id, filepath, **kwargs):
         print('Error: plugin for extension `%s` not found!' % extension)
         return False
     else:
-        records = parser(filepath, encoding=kwargs.get('encoding'))
+        parser_kwargs = {
+            'encoding': kwargs.get('encoding'),
+            'sanitize': kwargs.get('sanitize'),
+        }
+
+        records = parser(filepath, **parser_kwargs)
         fields = list(utils.gen_fields(records.next().keys(), type_cast))
 
         if verbose:
@@ -127,6 +132,9 @@ def update_hash_table(ckan, resource_id, resource_hash):
 @manager.arg(
     'type_cast', 't', help="type cast values based on field names.",
     type=bool, default=False)
+@manager.arg(
+    'sanitize', 's', help='underscorify and lowercase fieldnames', type=bool,
+    default=False)
 @manager.arg(
     'force', 'f', help="update resource even if it hasn't changed.",
     type=bool, default=False)
@@ -233,6 +241,9 @@ def update(resource_id, force=None, **kwargs):
     'chunksize_rows', 'c', help='number of rows to write at a time',
     type=int, default=api.CHUNKSIZE_ROWS)
 @manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
+@manager.arg(
+    'sanitize', 's', help='underscorify and lowercase fieldnames', type=bool,
+    default=False)
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.arg(

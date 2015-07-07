@@ -346,6 +346,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         delimiter (str): Field delimiter (default: ',').
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
+        sanitize (bool): Underscorify and lowercase fieldnames (default: False).
 
     Yields:
         dict: A csv row.
@@ -410,6 +411,7 @@ def read_xls(xls_filepath, **kwargs):
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
 
+        sanitize (bool): Underscorify and lowercase fieldnames (default: False).
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
             about sheets is Book.nsheets and Book.sheet_names() (default:
@@ -467,8 +469,12 @@ def read_xls(xls_filepath, **kwargs):
     sheet = book.sheet_by_index(0)
     header = sheet.row_values(0)
 
-    # Slugify field names and remove empty columns
-    names = [slugify(name, separator='_') for name in header if name.strip()]
+    # Remove empty columns
+    names = [name for name in header if name.strip()]
+
+    # Underscorify field names
+    if kwargs.get('sanitize'):
+        names = [slugify(name, separator='_') for name in names]
 
     # Convert dates
     sanitized = _sanitize_sheet(sheet, book.datemode, date_format)
