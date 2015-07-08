@@ -219,11 +219,17 @@ def make_date(value, date_format):
 
 
 def ctype2ext(content_type):
-    ctype = content_type.split('/')[1]
+    ctype = content_type.split('/')[1].split(';')[0]
     xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     switch = {'xls': 'xls', 'csv': 'csv'}
     switch[xlsx_type] = 'xlsx'
-    return switch[ctype]
+
+    if ctype not in switch:
+        print(
+            'Content-Type %s not found in dictionary. Using default value.'
+            % ctype)
+
+    return switch.get(ctype, 'csv')
 
 
 def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
@@ -242,7 +248,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test.csv')
-        >>> csv_records = read_csv(csv_filepath)
+        >>> csv_records = read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
         >>> csv_fields = gen_fields(csv_header, True)
         >>> csv_records.next()['some_date']
@@ -251,7 +257,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
         >>> xls_filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> xls_records = read_xls(xls_filepath)
+        >>> xls_records = read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
         >>> xls_fields = gen_fields(xls_header, True)
         >>> xls_records.next()['some_date']
@@ -340,12 +346,14 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         delimiter (str): Field delimiter (default: ',').
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
 
     Yields:
         dict: A csv row.
 
     Raises:
-        NotFound: If unable to the resource.
+        NotFound: If unable to find the resource.
 
     Examples:
         >>> from os import unlink, path as p
@@ -356,7 +364,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
-        >>> records = read_csv(filepath)
+        >>> records = read_csv(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
@@ -369,10 +377,15 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
     """
     with open(csv_filepath, mode) as f:
         encoding = kwargs.pop('encoding', ENCODING)
+        sanitize = kwargs.pop('sanitize', False)
         header = csv.reader(f, encoding=encoding, **kwargs).next()
 
-        # Slugify field names and remove empty columns
-        names = [slugify(n, separator='_') for n in header if n.strip()]
+        # Remove empty columns
+        names = [name for name in header if name.strip()]
+
+        # Underscorify field names
+        if sanitize:
+            names = [slugify(name, separator='_') for name in names]
 
         try:
             records = _read_csv(f, encoding, names)
@@ -399,6 +412,9 @@ def read_xls(xls_filepath, **kwargs):
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
 
+        sanitize (bool): Underscorify and lowercase field names
+            (default: False).
+
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
             about sheets is Book.nsheets and Book.sheet_names() (default:
@@ -411,7 +427,7 @@ def read_xls(xls_filepath, **kwargs):
         dict: An xls row.
 
     Raises:
-        NotFound: If unable to the resource.
+        NotFound: If unable to find the resource.
 
     Examples:
         >>> from os import unlink, path as p
@@ -422,7 +438,7 @@ def read_xls(xls_filepath, **kwargs):
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> records = read_xls(filepath)
+        >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
@@ -433,7 +449,7 @@ def read_xls(xls_filepath, **kwargs):
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
         >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
-        >>> records = read_xls(filepath)
+        >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
@@ -456,8 +472,12 @@ def read_xls(xls_filepath, **kwargs):
     sheet = book.sheet_by_index(0)
     header = sheet.row_values(0)
 
-    # Slugify field names and remove empty columns
-    names = [slugify(name, separator='_') for name in header if name.strip()]
+    # Remove empty columns
+    names = [name for name in header if name.strip()]
+
+    # Underscorify field names
+    if kwargs.get('sanitize'):
+        names = [slugify(name, separator='_') for name in names]
 
     # Convert dates
     sanitized = _sanitize_sheet(sheet, book.datemode, date_format)
