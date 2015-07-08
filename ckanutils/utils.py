@@ -346,7 +346,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         delimiter (str): Field delimiter (default: ',').
         quotechar (str): Quote character (default: '"').
         encoding (str): File encoding.
-        sanitize (bool): Underscorify and lowercase fieldnames (default: False).
+        sanitize (bool): Underscorify and lowercase field names (default: False).
 
     Yields:
         dict: A csv row.
@@ -411,7 +411,7 @@ def read_xls(xls_filepath, **kwargs):
         encoding (str): File encoding. By default, the encoding is derived from
             the file's `CODEPAGE` number, e.g., 1252 translates to `cp1252`.
 
-        sanitize (bool): Underscorify and lowercase fieldnames (default: False).
+        sanitize (bool): Underscorify and lowercase field names (default: False).
         on_demand (bool): open_workbook() loads global data and returns without
             releasing resources. At this stage, the only information available
             about sheets is Book.nsheets and Book.sheet_names() (default:

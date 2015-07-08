@@ -57,12 +57,12 @@ optional arguments:
 
 available commands:
   ver                      Show ckanny version
-  
+
   [ds]
     delete                 Deletes a datastore table
     update                 Updates a datastore table based on the current filestore resource
     upload                 Uploads a file to a datastore table
-  
+
   [fs]
     fetch                  Downloads a filestore resource
     migrate                Copies a filestore resource from one ckan instance to another

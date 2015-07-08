@@ -133,7 +133,7 @@ def update_hash_table(ckan, resource_id, resource_hash):
     'type_cast', 't', help="type cast values based on field names.",
     type=bool, default=False)
 @manager.arg(
-    'sanitize', 's', help='underscorify and lowercase fieldnames', type=bool,
+    'sanitize', 's', help='underscorify and lowercase field names', type=bool,
     default=False)
 @manager.arg(
     'force', 'f', help="update resource even if it hasn't changed.",
@@ -242,7 +242,7 @@ def update(resource_id, force=None, **kwargs):
     type=int, default=api.CHUNKSIZE_ROWS)
 @manager.arg('primary_key', 'p', help="Unique field(s), e.g., 'field1,field2'")
 @manager.arg(
-    'sanitize', 's', help='underscorify and lowercase fieldnames', type=bool,
+    'sanitize', 's', help='underscorify and lowercase field names', type=bool,
     default=False)
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
