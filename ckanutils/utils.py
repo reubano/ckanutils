@@ -248,7 +248,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> csv_filepath = p.join(parent_dir, 'data', 'test.csv')
-        >>> csv_records = read_csv(csv_filepath)
+        >>> csv_records = read_csv(csv_filepath, sanitize=True)
         >>> csv_header = sorted(csv_records.next().keys())
         >>> csv_fields = gen_fields(csv_header, True)
         >>> csv_records.next()['some_date']
@@ -257,7 +257,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         >>> casted_csv_values = [casted_csv_row[h] for h in csv_header]
         >>>
         >>> xls_filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> xls_records = read_xls(xls_filepath)
+        >>> xls_records = read_xls(xls_filepath, sanitize=True)
         >>> xls_header = sorted(xls_records.next().keys())
         >>> xls_fields = gen_fields(xls_header, True)
         >>> xls_records.next()['some_date']
@@ -364,7 +364,7 @@ def read_csv(csv_filepath, mode='rU', **kwargs):
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
-        >>> records = read_csv(filepath)
+        >>> records = read_csv(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
@@ -438,7 +438,7 @@ def read_xls(xls_filepath, **kwargs):
         >>> unlink(filepath)
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
-        >>> records = read_xls(filepath)
+        >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']
@@ -449,7 +449,7 @@ def read_xls(xls_filepath, **kwargs):
         >>> [r['some_date'] for r in records]
         ['2015-01-01', '1995-12-31']
         >>> filepath = p.join(parent_dir, 'data', 'test.xlsx')
-        >>> records = read_xls(filepath)
+        >>> records = read_xls(filepath, sanitize=True)
         >>> header = sorted(records.next().keys())
         >>> header
         [u'some_date', u'some_value', u'sparse_data', u'unicode_test']

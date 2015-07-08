@@ -492,7 +492,7 @@ class CKAN(object):
             >>> ckan = CKAN(quiet=True)
             >>> ckan.create_resource('pid')
             Traceback (most recent call last):
-            TypeError: You must specify either a `url` or `filepath`
+            TypeError: You must specify either a `url`, `filepath`, or `fileobj`
             >>> ckan.create_resource('pid', url='http://example.com/file')
             Package `pid` was not found.
         """
