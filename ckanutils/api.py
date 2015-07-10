@@ -356,7 +356,7 @@ class CKAN(object):
             raise NotFound(
                 'Resource `%s` was not found in filestore.' % resource_id)
 
-        url = resource['perma_link']
+        url = resource.get('perma_link') or resource.get('url')
 
         if self.verbose:
             print('Downloading url %s...' % url)
@@ -508,7 +508,7 @@ class CKAN(object):
             def_name = None
             file_format = 'csv'
         else:
-            file_format = p.splitext(path)[1]
+            file_format = p.splitext(path)[1].lstrip('.')
 
         kwargs['name'] = kwargs.get('name', def_name)
         kwargs['format'] = file_format
