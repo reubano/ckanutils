@@ -22,13 +22,13 @@ from . import api
 manager = Manager()
 
 
-def get_message(unchanged, force):
-    if unchanged and not force:
+def get_message(changed, force):
+    if not (changed or force):
         message = 'No new data found. Not updating datastore.'
-    elif unchanged and force:
+    elif not changed and force:
         message = 'No new data found, but update forced.'
         message += ' Updating datastore...'
-    elif not unchanged:
+    elif changed:
         message = 'New data found. Updating datastore...'
 
     return message
@@ -93,13 +93,17 @@ def create_hash_table(ckan, verbose):
     }
 
     if verbose:
-        print('Creating hash table')
+        print('Creating hash table...')
 
     ckan.create_table(**kwargs)
 
 
-def update_hash_table(ckan, resource_id, resource_hash):
+def update_hash_table(ckan, resource_id, resource_hash, verbose=False):
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
+
+    if verbose:
+        print('Uodating hash table...')
+
     ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
 
@@ -192,12 +196,12 @@ def update(resource_id, force=None, **kwargs):
             old_hash = ckan.get_hash(resource_id)
 
         new_hash = utils.hash_file(filepath, **hash_kwargs)
-        unchanged = new_hash == old_hash if old_hash else False
+        changed = new_hash != old_hash if old_hash else True
 
         if verbose:
-            print(get_message(unchanged, force))
+            print(get_message(changed, force))
 
-        if unchanged and not force:
+        if not (changed or force):
             sys.exit(0)
 
         kwargs['encoding'] = r.encoding
@@ -207,8 +211,8 @@ def update(resource_id, force=None, **kwargs):
         if updated and verbose:
             print('Success! Resource %s updated.' % resource_id)
 
-        if updated and not unchanged:
-            update_hash_table(ckan, resource_id, new_hash)
+        if updated and changed:
+            update_hash_table(ckan, resource_id, new_hash, verbose)
         elif not updated:
             sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
             traceback.print_exc(file=sys.stdout)
