@@ -271,7 +271,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         ['2015-01-01', 100.0, None, None]
     """
     make_date_p = partial(make_date, date_format=date_format)
-    make_unicode = lambda v: unicode(v) if v and v.trim() else None
+    make_unicode = lambda v: unicode(v) if v and v.strip() else None
     switch = {'float': make_float, 'date': make_date_p, 'text': make_unicode}
     field_types = {f['id']: f['type'] for f in fields}
 
@@ -493,7 +493,7 @@ def read_xls(xls_filepath, **kwargs):
 def get_temp_filepath(delete=False):
     """Creates a named temporary file.
 
-    Args:
+    Kwargs:
         delete (Optional[bool]): Delete file after closing (default: False).
 
     Returns:
