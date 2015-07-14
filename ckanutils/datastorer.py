@@ -153,7 +153,7 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-    except api.NotFound as err:
+    except (api.NotFound, api.NotAuthorized) as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         filepath = None
         sys.exit(1)

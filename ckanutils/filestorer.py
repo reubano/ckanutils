@@ -66,6 +66,9 @@ def fetch(resource_id, **kwargs):
             x['com.ckanutils.encoding'] = r.encoding
 
         print(filepath)
+    except api.NotAuthorized as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        sys.exit(1)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
@@ -113,6 +116,9 @@ def migrate(resource_id, **kwargs):
         dest_ckan = api.CKAN(remote=dest_remote, **ckan_kwargs)
         fetch_kwargs = {'chunksize': chunk_bytes}
         r, filepath = src_ckan.fetch_resource(resource_id, **fetch_kwargs)
+    except api.NotAuthorized as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        sys.exit(1)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)

@@ -25,7 +25,7 @@ import ckanapi
 
 from os import environ, path as p
 from . import utils, __version__ as version
-from ckanapi import NotFound
+from ckanapi import NotFound, NotAuthorized
 
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
@@ -340,6 +340,7 @@ class CKAN(object):
 
         Raises:
             NotFound: If unable to find the resource.
+            NotAuthorized: If access to fetch resource is denied.
 
         Examples:
             >>> CKAN(quiet=True).fetch_resource('rid')
@@ -381,8 +382,12 @@ class CKAN(object):
             filename = '%s.%s' % (filename, utils.ctype2ext(h['content-type']))
 
         filepath = p.join(filepath, filename) if isdir else filepath
-        utils.write_file(filepath, r, **kwargs)
-        return (r, filepath)
+        if any('403' in hist.headers.get('x-ckan-error', '') for hist in r.history):
+            raise NotAuthorized(
+                'Access to fetch resource %s was denied.' % resource_id)
+        else:
+            utils.write_file(filepath, r, **kwargs)
+            return (r, filepath)
 
     def _update_resource(self, resource, message, **kwargs):
         """Helps create or update a single resource on filestore.
