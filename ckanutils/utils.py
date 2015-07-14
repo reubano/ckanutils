@@ -127,6 +127,45 @@ def _sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
+def make_filepath(filepath, headers=None, name_from_id=False):
+    """Fetches a single resource from filestore.
+
+    Args:
+        filepath (str): Output file path or directory.
+
+    Kwargs:
+        headers (dict): HTTP response headers
+        name_from_id (bool): Use resource id for filename.
+
+    Returns:
+        str: filepath
+
+    Examples:
+        >>> make_filepath('rid')
+        Traceback (most recent call last):
+        NotFound: Resource `rid` was not found in filestore.
+    """
+    isdir = p.isdir(filepath)
+    headers = headers or {}
+
+    if isdir and not name_from_id:
+        try:
+            disposition = headers.get('content-disposition', '')
+            filename = disposition.split('=')[1].split('"')[1]
+        except (KeyError, IndexError):
+            filename = p.basename(url)
+    elif isdir:
+        filename = resource_id
+
+    if isdir and filename.startswith('export?format='):
+        filename = '%s.%s' % (resource_id, filename.split('=')[1])
+    elif isdir and '.' not in filename:
+        ctype = headers.get('content-type', '')
+        filename = '%s.%s' % (filename, utils.ctype2ext(ctype))
+
+    return p.join(filepath, filename) if isdir else filepath
+
+
 def make_float(value):
     """Parses and formats numbers.
 
@@ -507,19 +546,23 @@ def get_temp_filepath(delete=False):
     return tmpfile.name
 
 
-def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
+def write_file(filepath, fileobj, mode='wb', **kwargs):
     """Writes content to a named file.
 
     Args:
         filepath (str): The path of the file to write to.
-        r (obj): Requests object.
+        fileobj (obj): File like object or iterable response data.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
         mode (Optional[str]): The file open mode (default: 'wb').
-        chunksize (Optional[int]): Number of bytes to write at a time (defaults
-            to 0, i.e., all).
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            0, i.e., all).
+        length (Optional[int]): Length of content (default: 0).
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
-        bool: True
+        int: bytes written if chunksize else 0
 
     Examples:
         >>> import requests
@@ -528,26 +571,28 @@ def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
         >>> write_file(filepath, r)
         True
     """
+    chunksize = kwargs.get('chunksize')
+    length = int(kwargs.get('length') or 0)
+    bar_len = kwargs.get('bar_len', 50)
+
     with open(filepath, mode) as f:
-        if chunksize and r.headers.get('transfer-encoding') == 'chunked':
-            length = int(r.headers.get('content-length') or 0)
-            progress = 0
+        progress = 0
 
-            for chunk in r.iter_content(chunksize):
-                f.write(chunk)
-                progress += chunksize
+        try:
+            chunks = (chunk for chunk in fileobj.read(chunksize))
+        except AttributeError:
+            chunks = (chunk for chunk in fileobj(chunksize))
 
-                if length:
-                    bars = min(int(bar_len * progress / length), bar_len)
-                else:
-                    bars = bar_len
+        for chunk in chunks:
+            f.write(chunk)
+            progress += chunksize or 0
 
+            if length:
+                bars = min(int(bar_len * progress / length), bar_len)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
-        else:
-            f.write(r.raw.read())
 
-    return True
+    return progress
 
 
 def chunk(iterable, chunksize=0, start=0, stop=None):

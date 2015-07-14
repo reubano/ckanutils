@@ -322,21 +322,18 @@ class CKAN(object):
 
         return resource_hash
 
-    def fetch_resource(self, resource_id, **kwargs):
+    def fetch_resource(self, resource_id, user_agent=None, stream=True):
         """Fetches a single resource from filestore.
 
         Args:
             resource_id (str): The filestore resource id.
-            **kwargs: Keyword arguments that are passed to datastore_create.
 
         Kwargs:
-            filepath (str): Output file path or directory.
-            name_from_id (bool): Use resource id for filename.
-            chunksize (int): Number of bytes to write at a time.
             user_agent (str): The user agent.
+            stream (bool): Stream content (default: True).
 
         Returns:
-            Tuple(obj, str): Tuple of (requests.Response object, filepath).
+            obj: requests.Response object.
 
         Raises:
             NotFound: If unable to find the resource.
@@ -347,10 +344,7 @@ class CKAN(object):
             Traceback (most recent call last):
             NotFound: Resource `rid` was not found in filestore.
         """
-        user_agent = kwargs.pop('user_agent', self.user_agent)
-        filepath = kwargs.pop('filepath', utils.get_temp_filepath())
-        name_from_id = kwargs.pop('name_from_id', False)
-        isdir = p.isdir(filepath)
+        user_agent = user_agent or self.user_agent
 
         try:
             resource = self.resource_show(id=resource_id)
@@ -365,29 +359,13 @@ class CKAN(object):
             print('Downloading url %s...' % url)
 
         headers = {'User-Agent': user_agent}
-        r = requests.get(url, stream=True, headers=headers)
-        h = r.headers
+        r = requests.get(url, stream=stream, headers=headers)
 
-        if isdir and not name_from_id:
-            try:
-                filename = h['content-disposition'].split('=')[1].split('"')[1]
-            except (KeyError, IndexError):
-                filename = p.basename(url)
-        elif isdir:
-            filename = resource_id
-
-        if isdir and filename.startswith('export?format='):
-            filename = '%s.%s' % (resource_id, filename.split('=')[1])
-        elif isdir and '.' not in filename:
-            filename = '%s.%s' % (filename, utils.ctype2ext(h['content-type']))
-
-        filepath = p.join(filepath, filename) if isdir else filepath
-        if any('403' in hist.headers.get('x-ckan-error', '') for hist in r.history):
+        if any('403' in h.headers.get('x-ckan-error', '') for h in r.history):
             raise NotAuthorized(
                 'Access to fetch resource %s was denied.' % resource_id)
         else:
-            utils.write_file(filepath, r, **kwargs)
-            return (r, filepath)
+            return r
 
     def _update_resource(self, resource, message, **kwargs):
         """Helps create or update a single resource on filestore.

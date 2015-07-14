@@ -159,8 +159,8 @@ def customize(org_id, **kwargs):
         three_dub_id = three_dub['id']
 
     viz_url = '%s/dataset/%s' % (kwargs['remote'], three_dub_set_id)
-    # three_dub_fields = ckan.get_field_names(three_dub_id)
-    three_dub_fields = ['Organization','SectorCluster','Status','Township','StateRegion']
+    three_dub_r = ckan.fetch_resource(three_dub_id)
+    three_dub_fields = three_dub_r.iter_lines().next().split(',')
     # shape = ckan.fetch_shape(geojson_id)
     # geojson_fields = shape['features'][0]['properties'].keys()
     geojson_fields = ['ST_PCODE', 'ts', 'st', 'dt_pcode', 'gid', 'dt', 'TS_PCODE']

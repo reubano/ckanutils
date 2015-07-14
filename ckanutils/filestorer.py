@@ -45,16 +45,15 @@ manager = Manager()
 def fetch(resource_id, **kwargs):
     """Downloads a filestore resource"""
     verbose = not kwargs['quiet']
+    filepath = kwargs['destination']
+    name_from_id = kwargs.get['name_from_id']
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
-    fetch_kwargs = {
-        'filepath': kwargs['destination'],
-        'chunksize': kwargs['chunksize_bytes'],
-        'name_from_id': kwargs['name_from_id'],
-    }
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
-        r, filepath = ckan.fetch_resource(resource_id, **fetch_kwargs)
+        r = src_ckan.fetch_resource(resource_id)
+        filepath = utils.make_filepath(filepath, r.headers, name_from_id)
+        utils.write_file(filepath, r.iter_content, chunksize=kwargs.get('chunksize_bytes'))
 
         # save encoding to extended attributes
         x = xattr(filepath)
@@ -108,14 +107,15 @@ def migrate(resource_id, **kwargs):
         sys.exit(1)
 
     verbose = not kwargs['quiet']
-    chunk_bytes = kwargs['chunksize_bytes']
+    chunksize = kwargs['chunksize_bytes']
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     try:
         src_ckan = api.CKAN(remote=src_remote, **ckan_kwargs)
         dest_ckan = api.CKAN(remote=dest_remote, **ckan_kwargs)
-        fetch_kwargs = {'chunksize': chunk_bytes}
-        r, filepath = src_ckan.fetch_resource(resource_id, **fetch_kwargs)
+        r = src_ckan.fetch_resource(resource_id)
+        filepath = utils.get_temp_filepath()
+        utils.write_file(filepath, r.raw.read(), chunksize=chunksize)
     except api.NotAuthorized as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         sys.exit(1)
