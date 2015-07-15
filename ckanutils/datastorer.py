@@ -192,8 +192,7 @@ def update(resource_id, force=None, **kwargs):
                 ckan.hash_table_pack = ckan.package_create(**package_kwargs)
 
             if item in {'package', 'resource'}:
-                fileobj = StringIO()
-                fileobj.write('datastore_id,hash\n')
+                fileobj = StringIO('datastore_id,hash\n')
                 create_kwargs = {'fileobj': fileobj, 'name': api.DEF_HASH_RES}
                 table = kwargs['hash_table']
                 resource = ckan.create_resource(table, **create_kwargs)
