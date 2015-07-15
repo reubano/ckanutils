@@ -14,6 +14,7 @@ import sys
 from pprint import pprint
 from operator import itemgetter
 from time import time, strptime
+from datetime import datetime
 from os import unlink, getcwd, environ, path as p
 from manager import Manager
 from . import api, utils, datastorer as ds
@@ -36,20 +37,27 @@ def gen_fuzzies(fields, possible):
 
 
 def gen_items(items, tagged=None, named=None):
+    keys = ['metadata_modified', 'revision_timestamp', 'last_modified']
+
     for i in items:
         try:
-            timestamp = i['metadata_modified']
-        except KeyError:
-            timestamp = i['revision_timestamp']
+            timestamp = (i[key] for key in keys if key in i).next()
+        except StopIteration:
+            raise KeyError('None of the following keys found: %s in item' % keys)
+        else:
+            timestamp = timestamp or i.get('created')
 
         if i['state'] != 'active':
             continue
 
-        i['updated'] = strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
+        if timestamp:
+            i['updated'] = strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
+        else:
+            i['updated'] = datetime.now()
 
         if named and named.lower() in i['name'].lower():
             yield i
-        elif tagged:
+        elif tagged and 'tags' in i:
             for t in i['tags']:
                 if t['name'] == tagged:
                     yield i
@@ -90,6 +98,34 @@ def find_where(fields):
         return ''
 
 
+def find_ids(organization, pnamed=None, ptagged=None, rnamed=None):
+    packages = list(gen_items(organization['packages'], named=pnamed, tagged=ptagged))
+    sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
+    verb = 'named' if pnamed else
+
+    if pnamed:
+        verb, word = 'named', pnamed
+    elif ptagged:
+        verb, word = 'tagged', ptagged
+    else
+        verb, word = 'named', '*'
+
+    print('Searching for resources %s `%s`...' % (verb, word))
+
+    try:
+        set_id = sorted(packages, **sorted_kwargs)[0]['name']
+    except IndexError:
+        org_id = organization['id']
+        print('Error: %s has no packages %s `%s`' % (org_id, verb, word))
+        return {'resource_id': '', 'set_id': ''}
+    else:
+        found_set = ckan.package_show(id=set_id)
+        resources = list(gen_items(found_set['resources'], named=rnamed))
+        found_resource = sorted(resources, **sorted_kwargs)[0]
+        print('Selected resource: %s.' % found_resource['name'])
+        return {'resource_id': found_resource['id'], 'set_id': set_id}
+
+
 @manager.arg(
     'org_id', help='the organization id', nargs='?', default=sys.stdin)
 @manager.arg(
@@ -102,16 +138,19 @@ def find_where(fields):
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
 @manager.arg(
-    'image_sq', 's', help='logo 75x75 (url or google doc id)',
+    'image_sq', 'S', help='logo 75x75 (url or google doc id)',
     default='0B01Bdplw4VkCNG5HLXowNzV4WGM')
 @manager.arg(
     'image_rect', 'R', help='logo 300x125 (url or google doc id)',
     default='0B01Bdplw4VkCZC1vQWxJVlVGZWM')
 @manager.arg('color', 'c', help='the base color', default='#026bb5')
-@manager.arg('topline', 't', help='topline figures resource id')
-@manager.arg('3w', 'w', help='3w data resource id (default: most recently updated resource containing `3w`)')
+@manager.arg('topline', 't', help='topline figures resource id (default: most recently updated resource containing `topline`)')
+@manager.arg('3w', 'w', help='3w data resource id (default: most recently updated resource tagged `3w`)')
 @manager.arg('geojson', 'g', help='the map boundaries geojson resource id (default: most recently updated resource matching the org country)')
 @manager.arg('where', 'W', help='The `where` field (case insensitive) (default: first column name found matching a `3w` field).')
+@manager.arg(
+    'sanitize', 's', help='underscorify and lowercase field names', type=bool,
+    default=False)
 @manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
@@ -121,66 +160,59 @@ def customize(org_id, **kwargs):
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     image_sq = kwargs.get('image_sq')
     image_rect = kwargs.get('image_rect')
+    sanitize = kwargs.get('sanitize')
     three_dub_id = kwargs.get('3w')
-    geojson_id = kwargs.get('geojson_id')
-    topline_id = kwargs.get('topline') or ''
+    geojson_id = kwargs.get('geojson')
+    topline_id = kwargs.get('topline')
 
     ckan = api.CKAN(**ckan_kwargs)
-    organization = ckan.organization_show(id=org_id)
+    organization = ckan.organization_show(id=org_id, include_datasets=True)
+    hdx = ckan.organization_show(id='hdx', include_datasets=True)
     extras = {e['key']: e['value'] for e in organization['extras']}
+
+    if three_dub_id:
+        three_dub_set_id = ckan.get_package_id(three_dub_id)
+    else:
+        ids = find_ids(organization, '3w', '3w')
+        three_dub_set_id = ids['set_id']
+        three_dub_id = ids['resource_id']
+
+    if not three_dub_id:
+        sys.exit(1)
+
+    topline_id = topline_id or find_ids(organization, 'topline')['resource_id']
 
     if geojson_id:
         geojson_set_id = ckan.get_package_id(geojson_id)
     else:
         country = org_id.split('-')[1]
-        geojson_set_id = 'json-repository'
-        geojson_set = ckan.package_show(id=geojson_set_id)
-        resources = list(gen_items(geojson_set['resources'], named=country))
-        # print([(r['name'], r['id']) for r in resources])
-        sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
-        geojson = sorted(resources, **sorted_kwargs)[0]
-        geojson_id = geojson['id']
-
-    if three_dub_id:
-        three_dub_set_id = ckan.get_package_id(three_dub_id)
-    else:
-        packages = list(gen_items(organization['packages'], '3w'))
-        sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
-
-        try:
-            three_dub_set = sorted(packages, **sorted_kwargs)[0]
-        except IndexError:
-            print('Error: %s has no packages tagged `3w`' % org_id)
-            sys.exit(1)
-
-        three_dub_set_id = three_dub_set['name']
-        resources = list(gen_items(three_dub_set['resources']))
-        three_dub = sorted(resources, **sorted_kwargs)[0]
-        three_dub_id = three_dub['id']
+        ids = find_ids(hdx, 'json-repository', rnamed=country)
+        geojson_set_id = ids['set_id']
+        geojson_id = ids['resource_id']
 
     viz_url = '%s/dataset/%s' % (kwargs['remote'], three_dub_set_id)
     three_dub_r = ckan.fetch_resource(three_dub_id)
-    three_dub_fields = three_dub_r.iter_lines().next().split(',')
-    # shape = ckan.fetch_shape(geojson_id)
-    # geojson_fields = shape['features'][0]['properties'].keys()
-    geojson_fields = ['ST_PCODE', 'ts', 'st', 'dt_pcode', 'gid', 'dt', 'TS_PCODE']
+    _fields = three_dub_r.iter_lines().next().split(',')
+    three_dub_fields = utils.underscorify(_fields) if sanitize else _fields
+
+    if geojson_id:
+        geojson_r = ckan.fetch_resource(geojson_id)
+        geojson_fields = geojson_r.json()['features'][0]['properties'].keys()
+    else:
+        geojson_fields = []
 
     if verbose:
-        print('3w fields: %s' % three_dub_fields)
-        print('geojson fields: %s' % geojson_fields)
+        print('3w fields:')
+        pprint(three_dub_fields)
+        print('geojson fields:')
+        pprint(geojson_fields)
 
-    def_where = find_first_common(three_dub_fields, geojson_fields)
-    who_column = kwargs.get('who_column') or find_who(three_dub_fields)
-    what_column = kwargs.get('what_column') or find_what(three_dub_fields)
-
-    if def_where:
-        where_column = kwargs.get('where') or def_where
-        where_column_2 = kwargs.get('where') or def_where
-        name_column = kwargs.get('where') or def_where
-    else:
-        where_column = kwargs.get('where') or find_where(three_dub_fields)
-        where_column_2 = kwargs.get('where') or find_where(geojson_fields)
-        name_column = kwargs.get('where') or ''
+    def_where = find_first_common(three_dub_fields, geojson_fields) or ''
+    who_column = kwargs.get('who') or find_who(three_dub_fields)
+    what_column = kwargs.get('what') or find_what(three_dub_fields)
+    where_column = kwargs.get('where') or def_where or find_where(three_dub_fields)
+    where_column_2 = kwargs.get('where') or def_where or find_where(geojson_fields)
+    name_column = kwargs.get('where') or def_where
 
     if 'http' not in image_sq:
         gdocs = 'https://docs.google.com'

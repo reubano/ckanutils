@@ -42,6 +42,9 @@ from slugify import slugify
 ENCODING = 'utf-8'
 
 
+underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
+
+
 def patch_http_response_read(func):
     """Patches httplib to read poorly encoded chunked data.
 
@@ -423,8 +426,7 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         names = [name for name in header if name.strip()]
 
         # Underscorify field names
-        if sanitize:
-            names = [slugify(name, separator='_') for name in names]
+        names = underscorify(names) if sanitize else names
 
         try:
             records = _read_csv(f, encoding, names)
