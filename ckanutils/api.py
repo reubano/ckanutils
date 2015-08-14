@@ -447,10 +447,10 @@ class CKAN(object):
                 r = None
             else:
                 raise err
+        else:
+            return r
         finally:
             f.close() if f else None
-
-        return r
 
     def create_resource(self, package_id, **kwargs):
         """Creates a single resource on filestore. You must supply either
@@ -505,7 +505,7 @@ class CKAN(object):
             else:
                 file_format = p.splitext(path)[1].lstrip('.')
 
-        kwargs['name'] = kwargs.get('name', def_name)
+        kwargs.setdefault('name', def_name)
 
         # Will get `ckan.logic.ValidationError` if url isn't set
         kwargs.setdefault('url', 'http://example.com')
@@ -544,10 +544,10 @@ class CKAN(object):
             # Keep exception message consistent with the others
             print('Resource `%s` was not found in filestore.' % resource_id)
             return None
-
-        resource['package_id'] = self.get_package_id(resource_id)
-        message = 'Updating resource %s...' % resource_id
-        return self._update_resource(resource, message, **kwargs)
+        else:
+            resource['package_id'] = self.get_package_id(resource_id)
+            message = 'Updating resource %s...' % resource_id
+            return self._update_resource(resource, message, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
