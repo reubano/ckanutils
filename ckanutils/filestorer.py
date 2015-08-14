@@ -10,12 +10,11 @@ from __future__ import (
 
 import traceback
 import sys
-import utils
 
 from os import unlink, getcwd, environ, path as p
 from manager import Manager
 from xattr import xattr
-from . import api
+from . import api, utils
 
 manager = Manager()
 
@@ -54,8 +53,12 @@ def fetch(resource_id, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r = ckan.fetch_resource(resource_id)
-        fkwargs = {'headers': r.headers, 'name_from_id': name_from_id}
-        filepath = utils.make_filepath(filepath, resource_id, **fkwargs)
+        fkwargs = {
+            'headers': r.headers,
+            'name_from_id': name_from_id,
+            'resource_id': resource_id}
+
+        filepath = utils.make_filepath(filepath, **fkwargs)
         utils.write_file(filepath, r.iter_content, chunksize=chunksize)
 
         # save encoding to extended attributes

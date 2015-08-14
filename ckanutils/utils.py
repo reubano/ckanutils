@@ -28,7 +28,7 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 
-from os import p
+from os import path as p
 from dateutil.parser import parse
 from functools import partial
 from xlrd.xldate import xldate_as_datetime as xl2dt
@@ -127,7 +127,7 @@ def _sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
-def make_filepath(filepath, resource_id, headers=None, name_from_id=False):
+def make_filepath(filepath, **kwargs):
     """Creates the output filepath of a resource from filestore.
 
     Args:
@@ -136,32 +136,38 @@ def make_filepath(filepath, resource_id, headers=None, name_from_id=False):
 
     Kwargs:
         headers (dict): HTTP response headers
-        name_from_id (bool): Use resource id for filename.
+        name_from_id (bool): Overwrite filename with resource id.
+        resource_id (str): The resource id (required if `name_from_id` is True
+            or filepath is a google sheets export)
 
     Returns:
         str: filepath
 
     Examples:
-        >>> make_filepath('rid')
-        Traceback (most recent call last):
-        NotFound: Resource `rid` was not found in filestore.
+        >>> make_filepath('file.csv')
+        u'file.csv'
+        >>> make_filepath('.', resource_id='rid')
+        Content-Type None not found in dictionary. Using default value.
+        u'./rid.csv'
     """
     isdir = p.isdir(filepath)
-    headers = headers or {}
+    headers = kwargs.get('headers') or {}
+    name_from_id = kwargs.get('name_from_id')
+    resource_id = kwargs.get('resource_id')
 
     if isdir and not name_from_id:
         try:
             disposition = headers.get('content-disposition', '')
             filename = disposition.split('=')[1].split('"')[1]
         except (KeyError, IndexError):
-            filename = p.basename(filepath)
-    elif name_from_id:
+            filename = resource_id
+    elif isdir or name_from_id:
         filename = resource_id
 
     if isdir and filename.startswith('export?format='):
         filename = '%s.%s' % (resource_id, filename.split('=')[1])
     elif isdir and '.' not in filename:
-        ctype = headers.get('content-type', '')
+        ctype = headers.get('content-type')
         filename = '%s.%s' % (filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
@@ -258,8 +264,12 @@ def make_date(value, date_format):
     return value
 
 
-def ctype2ext(content_type):
-    ctype = content_type.split('/')[1].split(';')[0]
+def ctype2ext(content_type=None):
+    try:
+        ctype = content_type.split('/')[1].split(';')[0]
+    except (AttributeError, IndexError):
+        ctype = None
+
     xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     switch = {'xls': 'xls', 'csv': 'csv'}
     switch[xlsx_type] = 'xlsx'
@@ -557,7 +567,7 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
     Kwargs:
         mode (Optional[str]): The file open mode (default: 'wb').
         chunksize (Optional[int]): Number of bytes to write at a time (default:
-            0, i.e., all).
+            None, i.e., all).
         length (Optional[int]): Length of content (default: 0).
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
@@ -568,8 +578,8 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         >>> import requests
         >>> filepath = get_temp_filepath(delete=True)
         >>> r = requests.get('http://google.com')
-        >>> write_file(filepath, r)
-        True
+        >>> write_file(filepath, r.iter_content)
+        10000000000
     """
     chunksize = kwargs.get('chunksize')
     length = int(kwargs.get('length') or 0)
@@ -581,6 +591,7 @@ def write_file(filepath, fileobj, mode='wb', **kwargs):
         try:
             chunks = (chunk for chunk in fileobj.read(chunksize))
         except AttributeError:
+            chunksize = chunksize or pow(10, 10)
             chunks = (chunk for chunk in fileobj(chunksize))
 
         for chunk in chunks:
