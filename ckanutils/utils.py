@@ -97,7 +97,7 @@ def _read_csv(f, encoding, names):
 
 
 def _sanitize_sheet(sheet, mode, date_format):
-    """Formats xlrd cell types (from xls/xslx file) as strings.
+    """Formats xlrd cells (from xls/xslx file) to strings.
 
     Args:
         book (obj): `xlrd` workbook object.
@@ -131,7 +131,7 @@ def _sanitize_sheet(sheet, mode, date_format):
 
 
 def make_filepath(filepath, headers=None, name_from_id=False):
-    """Fetches a single resource from filestore.
+    """Creates the output filepath of a resource from filestore.
 
     Args:
         filepath (str): Output file path or directory.
