@@ -28,6 +28,7 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 
+from os import path as p
 from dateutil.parser import parse
 from functools import partial
 from xlrd.xldate import xldate_as_datetime as xl2dt
@@ -40,6 +41,7 @@ from tempfile import NamedTemporaryFile
 from slugify import slugify
 
 ENCODING = 'utf-8'
+underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
 
 
 def patch_http_response_read(func):
@@ -70,7 +72,6 @@ def _read_csv(f, encoding, names):
         dict: A csv record.
 
     Examples:
-        >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
         >>> f = open(filepath, 'rU')
@@ -94,7 +95,7 @@ def _read_csv(f, encoding, names):
 
 
 def _sanitize_sheet(sheet, mode, date_format):
-    """Formats xlrd cell types (from xls/xslx file) as strings.
+    """Formats xlrd cells (from xls/xslx file) to strings.
 
     Args:
         book (obj): `xlrd` workbook object.
@@ -105,7 +106,6 @@ def _sanitize_sheet(sheet, mode, date_format):
         Tuple[int, str]: A tuple of (row_number, value).
 
     Examples:
-        >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
@@ -125,6 +125,52 @@ def _sanitize_sheet(sheet, mode, date_format):
     for i in xrange(sheet.nrows):
         for ctype, value in it.izip(sheet.row_types(i), sheet.row_values(i)):
             yield (i, switch.get(ctype, lambda v: v)(value))
+
+
+def make_filepath(filepath, **kwargs):
+    """Creates the output filepath of a resource from filestore.
+
+    Args:
+        filepath (str): Output file path or directory.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
+        headers (dict): HTTP response headers
+        name_from_id (bool): Overwrite filename with resource id.
+        resource_id (str): The resource id (required if `name_from_id` is True
+            or filepath is a google sheets export)
+
+    Returns:
+        str: filepath
+
+    Examples:
+        >>> make_filepath('file.csv')
+        u'file.csv'
+        >>> make_filepath('.', resource_id='rid')
+        Content-Type None not found in dictionary. Using default value.
+        u'./rid.csv'
+    """
+    isdir = p.isdir(filepath)
+    headers = kwargs.get('headers') or {}
+    name_from_id = kwargs.get('name_from_id')
+    resource_id = kwargs.get('resource_id')
+
+    if isdir and not name_from_id:
+        try:
+            disposition = headers.get('content-disposition', '')
+            filename = disposition.split('=')[1].split('"')[1]
+        except (KeyError, IndexError):
+            filename = resource_id
+    elif isdir or name_from_id:
+        filename = resource_id
+
+    if isdir and filename.startswith('export?format='):
+        filename = '%s.%s' % (resource_id, filename.split('=')[1])
+    elif isdir and '.' not in filename:
+        ctype = headers.get('content-type')
+        filename = '%s.%s' % (filename, ctype2ext(ctype))
+
+    return p.join(filepath, filename) if isdir else filepath
 
 
 def make_float(value):
@@ -218,8 +264,12 @@ def make_date(value, date_format):
     return value
 
 
-def ctype2ext(content_type):
-    ctype = content_type.split('/')[1].split(';')[0]
+def ctype2ext(content_type=None):
+    try:
+        ctype = content_type.split('/')[1].split(';')[0]
+    except (AttributeError, IndexError):
+        ctype = None
+
     xlsx_type = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     switch = {'xls': 'xls', 'csv': 'csv'}
     switch[xlsx_type] = 'xlsx'
@@ -271,7 +321,7 @@ def gen_type_cast(records, fields, date_format='%Y-%m-%d'):
         ['2015-01-01', 100.0, None, None]
     """
     make_date_p = partial(make_date, date_format=date_format)
-    make_unicode = lambda v: unicode(v) if v and v.trim() else None
+    make_unicode = lambda v: unicode(v) if v and v.strip() else None
     switch = {'float': make_float, 'date': make_date_p, 'text': make_unicode}
     field_types = {f['id']: f['type'] for f in fields}
 
@@ -384,8 +434,7 @@ u'05/04/82', u'234', u'Iñtërnâtiônàližætiøn', u'Ādam']
         names = [name for name in header if name.strip()]
 
         # Underscorify field names
-        if sanitize:
-            names = [slugify(name, separator='_') for name in names]
+        names = underscorify(names) if sanitize else names
 
         try:
             records = _read_csv(f, encoding, names)
@@ -493,7 +542,7 @@ def read_xls(xls_filepath, **kwargs):
 def get_temp_filepath(delete=False):
     """Creates a named temporary file.
 
-    Args:
+    Kwargs:
         delete (Optional[bool]): Delete file after closing (default: False).
 
     Returns:
@@ -507,47 +556,54 @@ def get_temp_filepath(delete=False):
     return tmpfile.name
 
 
-def write_file(filepath, r, mode='wb', chunksize=0, bar_len=50):
+def write_file(filepath, fileobj, mode='wb', **kwargs):
     """Writes content to a named file.
 
     Args:
         filepath (str): The path of the file to write to.
-        r (obj): Requests object.
+        fileobj (obj): File like object or iterable response data.
+        **kwargs: Keyword arguments.
+
+    Kwargs:
         mode (Optional[str]): The file open mode (default: 'wb').
-        chunksize (Optional[int]): Number of bytes to write at a time (defaults
-            to 0, i.e., all).
+        chunksize (Optional[int]): Number of bytes to write at a time (default:
+            None, i.e., all).
+        length (Optional[int]): Length of content (default: 0).
         bar_len (Optional[int]): Length of progress bar (default: 50).
 
     Returns:
-        bool: True
+        int: bytes written if chunksize else 0
 
     Examples:
         >>> import requests
         >>> filepath = get_temp_filepath(delete=True)
         >>> r = requests.get('http://google.com')
-        >>> write_file(filepath, r)
-        True
+        >>> write_file(filepath, r.iter_content)
+        10000000000
     """
+    chunksize = kwargs.get('chunksize')
+    length = int(kwargs.get('length') or 0)
+    bar_len = kwargs.get('bar_len', 50)
+
     with open(filepath, mode) as f:
-        if chunksize and r.headers.get('transfer-encoding') == 'chunked':
-            length = int(r.headers.get('content-length') or 0)
-            progress = 0
+        progress = 0
 
-            for chunk in r.iter_content(chunksize):
-                f.write(chunk)
-                progress += chunksize
+        try:
+            chunks = (chunk for chunk in fileobj.read(chunksize))
+        except AttributeError:
+            chunksize = chunksize or pow(10, 10)
+            chunks = (chunk for chunk in fileobj(chunksize))
 
-                if length:
-                    bars = min(int(bar_len * progress / length), bar_len)
-                else:
-                    bars = bar_len
+        for chunk in chunks:
+            f.write(chunk)
+            progress += chunksize or 0
 
+            if length:
+                bars = min(int(bar_len * progress / length), bar_len)
                 print('\r[%s%s]' % ('=' * bars, ' ' * (bar_len - bars)))
                 sys.stdout.flush()
-        else:
-            f.write(r.raw.read())
 
-    return True
+    return progress
 
 
 def chunk(iterable, chunksize=0, start=0, stop=None):

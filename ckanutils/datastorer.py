@@ -22,13 +22,13 @@ from . import api
 manager = Manager()
 
 
-def get_message(unchanged, force):
-    if unchanged and not force:
+def get_message(changed, force):
+    if not (changed or force):
         message = 'No new data found. Not updating datastore.'
-    elif unchanged and force:
+    elif not changed and force:
         message = 'No new data found, but update forced.'
         message += ' Updating datastore...'
-    elif not unchanged:
+    elif changed:
         message = 'New data found. Updating datastore...'
 
     return message
@@ -93,13 +93,17 @@ def create_hash_table(ckan, verbose):
     }
 
     if verbose:
-        print('Creating hash table')
+        print('Creating hash table...')
 
     ckan.create_table(**kwargs)
 
 
-def update_hash_table(ckan, resource_id, resource_hash):
+def update_hash_table(ckan, resource_id, resource_hash, verbose=False):
     records = [{'datastore_id': resource_id, 'hash': resource_hash}]
+
+    if verbose:
+        print('Uodating hash table...')
+
     ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
 
@@ -141,15 +145,22 @@ def update_hash_table(ckan, resource_id, resource_hash):
 @manager.command
 def update(resource_id, force=None, **kwargs):
     """Updates a datastore table based on the current filestore resource"""
-    verbose = not kwargs['quiet']
-    chunk_bytes = kwargs['chunksize_bytes']
+    verbose = not kwargs.get('quiet')
+    chunk_bytes = kwargs.get('chunk_bytes', api.CHUNKSIZE_BYTES)
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     hash_kwargs = {'chunksize': chunk_bytes, 'verbose': verbose}
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
-        r, filepath = ckan.fetch_resource(resource_id, chunksize=chunk_bytes)
-    except api.NotFound as err:
+        r = ckan.fetch_resource(resource_id)
+        filepath = utils.get_temp_filepath()
+        write_kwargs = {
+            'length': r.headers.get('content-length'),
+            'chunksize': chunk_bytes
+        }
+
+        utils.write_file(filepath, r.iter_content, **write_kwargs)
+    except (api.NotFound, api.NotAuthorized) as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         filepath = None
         sys.exit(1)
@@ -181,8 +192,7 @@ def update(resource_id, force=None, **kwargs):
                 ckan.hash_table_pack = ckan.package_create(**package_kwargs)
 
             if item in {'package', 'resource'}:
-                fileobj = StringIO()
-                fileobj.write('datastore_id,hash\n')
+                fileobj = StringIO('datastore_id,hash\n')
                 create_kwargs = {'fileobj': fileobj, 'name': api.DEF_HASH_RES}
                 table = kwargs['hash_table']
                 resource = ckan.create_resource(table, **create_kwargs)
@@ -192,12 +202,12 @@ def update(resource_id, force=None, **kwargs):
             old_hash = ckan.get_hash(resource_id)
 
         new_hash = utils.hash_file(filepath, **hash_kwargs)
-        unchanged = new_hash == old_hash if old_hash else False
+        changed = new_hash != old_hash if old_hash else True
 
         if verbose:
-            print(get_message(unchanged, force))
+            print(get_message(changed, force))
 
-        if unchanged and not force:
+        if not (changed or force):
             sys.exit(0)
 
         kwargs['encoding'] = r.encoding
@@ -207,8 +217,8 @@ def update(resource_id, force=None, **kwargs):
         if updated and verbose:
             print('Success! Resource %s updated.' % resource_id)
 
-        if updated and not unchanged:
-            update_hash_table(ckan, resource_id, new_hash)
+        if updated and changed:
+            update_hash_table(ckan, resource_id, new_hash, verbose)
         elif not updated:
             sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
             traceback.print_exc(file=sys.stdout)

@@ -14,7 +14,7 @@ import sys
 from os import unlink, getcwd, environ, path as p
 from manager import Manager
 from xattr import xattr
-from . import api
+from . import api, utils
 
 manager = Manager()
 
@@ -45,16 +45,21 @@ manager = Manager()
 def fetch(resource_id, **kwargs):
     """Downloads a filestore resource"""
     verbose = not kwargs['quiet']
+    filepath = kwargs['destination']
+    name_from_id = kwargs.get('name_from_id')
+    chunksize = kwargs.get('chunksize_bytes')
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
-    fetch_kwargs = {
-        'filepath': kwargs['destination'],
-        'chunksize': kwargs['chunksize_bytes'],
-        'name_from_id': kwargs['name_from_id'],
-    }
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
-        r, filepath = ckan.fetch_resource(resource_id, **fetch_kwargs)
+        r = ckan.fetch_resource(resource_id)
+        fkwargs = {
+            'headers': r.headers,
+            'name_from_id': name_from_id,
+            'resource_id': resource_id}
+
+        filepath = utils.make_filepath(filepath, **fkwargs)
+        utils.write_file(filepath, r.iter_content, chunksize=chunksize)
 
         # save encoding to extended attributes
         x = xattr(filepath)
@@ -66,6 +71,9 @@ def fetch(resource_id, **kwargs):
             x['com.ckanutils.encoding'] = r.encoding
 
         print(filepath)
+    except api.NotAuthorized as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        sys.exit(1)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
@@ -105,14 +113,18 @@ def migrate(resource_id, **kwargs):
         sys.exit(1)
 
     verbose = not kwargs['quiet']
-    chunk_bytes = kwargs['chunksize_bytes']
+    chunksize = kwargs['chunksize_bytes']
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     try:
         src_ckan = api.CKAN(remote=src_remote, **ckan_kwargs)
         dest_ckan = api.CKAN(remote=dest_remote, **ckan_kwargs)
-        fetch_kwargs = {'chunksize': chunk_bytes}
-        r, filepath = src_ckan.fetch_resource(resource_id, **fetch_kwargs)
+        r = src_ckan.fetch_resource(resource_id)
+        filepath = utils.get_temp_filepath()
+        utils.write_file(filepath, r.raw.read(), chunksize=chunksize)
+    except api.NotAuthorized as err:
+        sys.stderr.write('ERROR: %s\n' % str(err))
+        sys.exit(1)
     except Exception as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
@@ -122,6 +134,8 @@ def migrate(resource_id, **kwargs):
 
         if resource and verbose:
             print('Success! Resource %s updated.' % resource_id)
+        elif not resource:
+            sys.exit('Error uploading file!')
     finally:
         if verbose:
             print('Removing tempfile...')
@@ -132,7 +146,10 @@ def migrate(resource_id, **kwargs):
 @manager.arg(
     'source', help='the source file path', nargs='?', default=sys.stdin)
 @manager.arg(
-    'resource_id', 'R', help='the resource id (default: source file name)')
+    'resource_id', 'R', help=('the resource id to update (default: source file'
+        ' name)'))
+@manager.arg(
+    'package_id', 'p', help='the package id (used to create a new resource)')
 @manager.arg(
     'remote', 'r', help='the remote ckan url (uses `%s` ENV if available)' %
     api.REMOTE_ENV, default=environ.get(api.REMOTE_ENV))
@@ -143,15 +160,21 @@ def migrate(resource_id, **kwargs):
     'ua', 'u', help='the user agent (uses `%s` ENV if available)' % api.UA_ENV,
     default=environ.get(api.UA_ENV))
 @manager.arg(
+    'url', 'U', help='treat source as a url', type=bool, default=False)
+@manager.arg(
     'quiet', 'q', help='suppress debug statements', type=bool, default=False)
 @manager.command
-def upload(source, resource_id=None, **kwargs):
-    """Uploads a file to the filestore of an existing resource"""
+def upload(source, resource_id=None, package_id=None, **kwargs):
+    """Updates the filestore of an existing resource or creates a new one"""
     verbose = not kwargs['quiet']
     resource_id = resource_id or p.splitext(p.basename(source))[0]
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
-    if verbose:
+    if package_id and verbose:
+        print(
+            'Creating filestore resource %s in dataset %s...' %
+            (source, package_id))
+    elif verbose:
         print(
             'Uploading %s to filestore resource %s...' % (source, resource_id))
 
@@ -161,11 +184,20 @@ def upload(source, resource_id=None, **kwargs):
         sys.stderr.write('ERROR: %s\n' % str(err))
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
-    else:
-        resource = ckan.update_resource(resource_id, filepath=source)
 
-        if resource and verbose:
-            print('Success! Resource %s updated.' % resource_id)
+    resource_kwargs = {'url' if kwargs.get('url') else 'filepath': source}
+    if package_id:
+        resource = ckan.create_resource(package_id, **resource_kwargs)
+    else:
+        resource = ckan.update_resource(resource_id, **resource_kwargs)
+
+    if package_id and resource and verbose:
+        infix = '%s ' % resource['id'] if resource.get('id') else ''
+        print('Success! Resource %screated.' % infix)
+    elif resource and verbose:
+        print('Success! Resource %s updated.' % resource_id)
+    elif not resource:
+        sys.exit('Error uploading file!')
 
 
 if __name__ == '__main__':

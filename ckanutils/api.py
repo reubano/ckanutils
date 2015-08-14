@@ -25,7 +25,7 @@ import ckanapi
 
 from os import environ, path as p
 from . import utils, __version__ as version
-from ckanapi import NotFound
+from ckanapi import NotFound, NotAuthorized
 
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
@@ -88,9 +88,10 @@ class CKAN(object):
         ckan = getattr(ckanapi, attr)(remote, **ckan_kwargs)
 
         self.address = ckan.address
+        self.package_show = ckan.action.package_show
 
         try:
-            self.hash_table_pack = ckan.action.package_show(id=self.hash_table)
+            self.hash_table_pack = self.package_show(id=self.hash_table)
         except NotFound:
             self.hash_table_pack = None
 
@@ -110,6 +111,7 @@ class CKAN(object):
         self.package_create = ckan.action.package_create
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
+        self.organization_show = ckan.action.organization_show
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table for an existing filestore resource.
@@ -320,34 +322,29 @@ class CKAN(object):
 
         return resource_hash
 
-    def fetch_resource(self, resource_id, **kwargs):
+    def fetch_resource(self, resource_id, user_agent=None, stream=True):
         """Fetches a single resource from filestore.
 
         Args:
             resource_id (str): The filestore resource id.
-            **kwargs: Keyword arguments that are passed to datastore_create.
 
         Kwargs:
-            filepath (str): Output file path or directory.
-            name_from_id (bool): Use resource id for filename.
-            chunksize (int): Number of bytes to write at a time.
             user_agent (str): The user agent.
+            stream (bool): Stream content (default: True).
 
         Returns:
-            Tuple(obj, str): Tuple of (requests.Response object, filepath).
+            obj: requests.Response object.
 
         Raises:
             NotFound: If unable to find the resource.
+            NotAuthorized: If access to fetch resource is denied.
 
         Examples:
             >>> CKAN(quiet=True).fetch_resource('rid')
             Traceback (most recent call last):
             NotFound: Resource `rid` was not found in filestore.
         """
-        user_agent = kwargs.pop('user_agent', self.user_agent)
-        filepath = kwargs.pop('filepath', utils.get_temp_filepath())
-        name_from_id = kwargs.pop('name_from_id', False)
-        isdir = p.isdir(filepath)
+        user_agent = user_agent or self.user_agent
 
         try:
             resource = self.resource_show(id=resource_id)
@@ -356,31 +353,19 @@ class CKAN(object):
             raise NotFound(
                 'Resource `%s` was not found in filestore.' % resource_id)
 
-        url = resource['perma_link']
+        url = resource.get('perma_link') or resource.get('url')
 
         if self.verbose:
             print('Downloading url %s...' % url)
 
         headers = {'User-Agent': user_agent}
-        r = requests.get(url, stream=True, headers=headers)
-        h = r.headers
+        r = requests.get(url, stream=stream, headers=headers)
 
-        if isdir and not name_from_id:
-            try:
-                filename = h['content-disposition'].split('=')[1].split('"')[1]
-            except (KeyError, IndexError):
-                filename = p.basename(url)
-        elif isdir:
-            filename = resource_id
-
-        if isdir and filename.startswith('export?format='):
-            filename = '%s.%s' % (resource_id, filename.split('=')[1])
-        elif isdir and '.' not in filename:
-            filename = '%s.%s' % (filename, utils.ctype2ext(h['content-type']))
-
-        filepath = p.join(filepath, filename) if isdir else filepath
-        utils.write_file(filepath, r, **kwargs)
-        return (r, filepath)
+        if any('403' in h.headers.get('x-ckan-error', '') for h in r.history):
+            raise NotAuthorized(
+                'Access to fetch resource %s was denied.' % resource_id)
+        else:
+            return r
 
     def _update_resource(self, resource, message, **kwargs):
         """Helps create or update a single resource on filestore.
@@ -442,7 +427,10 @@ class CKAN(object):
             if post:
                 r = requests.post(url, **data)
             else:
-                r = self.resource_create(**data)
+                # resource_create is supposed to return the create resource,
+                # but doesn't for whatever reason
+                self.resource_create(**data)
+                r = {'id': None}
         except NotFound:
             # Keep exception message consistent with the others
             if 'resource_id' in resource:
@@ -459,10 +447,10 @@ class CKAN(object):
                 r = None
             else:
                 raise err
+        else:
+            return r
         finally:
             f.close() if f else None
-
-        return r
 
     def create_resource(self, package_id, **kwargs):
         """Creates a single resource on filestore. You must supply either
@@ -503,14 +491,24 @@ class CKAN(object):
         path = filter(None, map(kwargs.get, ['url', 'filepath', 'fileobj']))[0]
 
         try:
-            def_name = p.basename(path)
+            if 'docs.google.com' in path:
+                def_name = path.split('gid=')[1].split('&')[0]
+            else:
+                def_name = p.basename(path)
         except AttributeError:
             def_name = None
             file_format = 'csv'
         else:
-            file_format = p.splitext(path)[1]
+            # copy/pasted from utils... fix later
+            if 'format=' in path:
+                file_format = path.split('format=')[1]
+            else:
+                file_format = p.splitext(path)[1].lstrip('.')
 
-        kwargs['name'] = kwargs.get('name', def_name)
+        kwargs.setdefault('name', def_name)
+
+        # Will get `ckan.logic.ValidationError` if url isn't set
+        kwargs.setdefault('url', 'http://example.com')
         kwargs['format'] = file_format
         resource = {'package_id': package_id}
         message = 'Creating new resource in package %s...' % package_id
@@ -546,10 +544,10 @@ class CKAN(object):
             # Keep exception message consistent with the others
             print('Resource `%s` was not found in filestore.' % resource_id)
             return None
-
-        resource['package_id'] = self.get_package_id(resource_id)
-        message = 'Updating resource %s...' % resource_id
-        return self._update_resource(resource, message, **kwargs)
+        else:
+            resource['package_id'] = self.get_package_id(resource_id)
+            message = 'Updating resource %s...' % resource_id
+            return self._update_resource(resource, message, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.

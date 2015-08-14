@@ -9,12 +9,12 @@ from __future__ import (
     unicode_literals)
 
 from manager import Manager
-from . import datastorer
-from . import filestorer
+from . import datastorer, filestorer, hdx
 
 manager = Manager()
 manager.merge(datastorer.manager, namespace='ds')
 manager.merge(filestorer.manager, namespace='fs')
+manager.merge(hdx.manager, namespace='hdx')
 
 
 @manager.command

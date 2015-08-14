@@ -8,8 +8,8 @@ from os import path as p
 import sys
 
 if __name__ == '__main__':
-    path = p.abspath(p.dirname(p.dirname(__file__)))
     # prepend path
+    path = p.abspath(p.dirname(p.dirname(__file__)))
     sys.path[0:0] = [path]
 
     from ckanutils.main import manager
