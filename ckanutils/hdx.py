@@ -101,13 +101,12 @@ def find_where(fields):
 def find_ids(organization, pnamed=None, ptagged=None, rnamed=None):
     packages = list(gen_items(organization['packages'], named=pnamed, tagged=ptagged))
     sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
-    verb = 'named' if pnamed else
 
     if pnamed:
         verb, word = 'named', pnamed
     elif ptagged:
         verb, word = 'tagged', ptagged
-    else
+    else:
         verb, word = 'named', '*'
 
     print('Searching for resources %s `%s`...' % (verb, word))

@@ -427,7 +427,10 @@ class CKAN(object):
             if post:
                 r = requests.post(url, **data)
             else:
-                r = self.resource_create(**data)
+                # resource_create is supposed to return the create resource,
+                # but doesn't for whatever reason
+                self.resource_create(**data)
+                r = {'id': None}
         except NotFound:
             # Keep exception message consistent with the others
             if 'resource_id' in resource:
@@ -488,14 +491,24 @@ class CKAN(object):
         path = filter(None, map(kwargs.get, ['url', 'filepath', 'fileobj']))[0]
 
         try:
-            def_name = p.basename(path)
+            if 'docs.google.com' in path:
+                def_name = path.split('gid=')[1].split('&')[0]
+            else:
+                def_name = p.basename(path)
         except AttributeError:
             def_name = None
             file_format = 'csv'
         else:
-            file_format = p.splitext(path)[1].lstrip('.')
+            # copy/pasted from utils... fix later
+            if 'format=' in path:
+                file_format = path.split('format=')[1]
+            else:
+                file_format = p.splitext(path)[1].lstrip('.')
 
         kwargs['name'] = kwargs.get('name', def_name)
+
+        # Will get `ckan.logic.ValidationError` if url isn't set
+        kwargs.setdefault('url', 'http://example.com')
         kwargs['format'] = file_format
         resource = {'package_id': package_id}
         message = 'Creating new resource in package %s...' % package_id

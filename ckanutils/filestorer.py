@@ -128,7 +128,7 @@ def migrate(resource_id, **kwargs):
 
         if resource and verbose:
             print('Success! Resource %s updated.' % resource_id)
-        else:
+        elif not resource:
             sys.exit('Error uploading file!')
     finally:
         if verbose:
@@ -183,10 +183,11 @@ def upload(source, resource_id=None, package_id=None, **kwargs):
         resource = ckan.update_resource(resource_id, filepath=source)
 
     if package_id and resource and verbose:
-        print('Success! Resource %s created.' % resource['id'])
+        infix = '%s ' % resource['id'] if resource.get('id') else ''
+        print('Success! Resource %screated.' % infix)
     elif resource and verbose:
         print('Success! Resource %s updated.' % resource_id)
-    else:
+    elif not resource:
         sys.exit('Error uploading file!')
 
 

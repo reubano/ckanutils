@@ -164,7 +164,7 @@ def make_filepath(filepath, headers=None, name_from_id=False):
         filename = '%s.%s' % (resource_id, filename.split('=')[1])
     elif isdir and '.' not in filename:
         ctype = headers.get('content-type', '')
-        filename = '%s.%s' % (filename, utils.ctype2ext(ctype))
+        filename = '%s.%s' % (filename, ctype2ext(ctype))
 
     return p.join(filepath, filename) if isdir else filepath
 
