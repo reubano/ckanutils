@@ -41,8 +41,6 @@ from tempfile import NamedTemporaryFile
 from slugify import slugify
 
 ENCODING = 'utf-8'
-
-
 underscorify = lambda fields: [slugify(f, separator='_') for f in fields]
 
 
@@ -134,6 +132,7 @@ def make_filepath(filepath, resource_id, headers=None, name_from_id=False):
 
     Args:
         filepath (str): Output file path or directory.
+        **kwargs: Keyword arguments.
 
     Kwargs:
         headers (dict): HTTP response headers
