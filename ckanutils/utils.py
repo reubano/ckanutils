@@ -28,6 +28,7 @@ import xlrd
 import itertools as it
 import unicodecsv as csv
 
+from os import p
 from dateutil.parser import parse
 from functools import partial
 from xlrd.xldate import xldate_as_datetime as xl2dt
@@ -73,7 +74,6 @@ def _read_csv(f, encoding, names):
         dict: A csv record.
 
     Examples:
-        >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.csv')
         >>> f = open(filepath, 'rU')
@@ -108,7 +108,6 @@ def _sanitize_sheet(sheet, mode, date_format):
         Tuple[int, str]: A tuple of (row_number, value).
 
     Examples:
-        >>> from os import path as p
         >>> parent_dir = p.abspath(p.dirname(p.dirname(__file__)))
         >>> filepath = p.join(parent_dir, 'data', 'test.xls')
         >>> book = xlrd.open_workbook(filepath)
@@ -130,7 +129,7 @@ def _sanitize_sheet(sheet, mode, date_format):
             yield (i, switch.get(ctype, lambda v: v)(value))
 
 
-def make_filepath(filepath, headers=None, name_from_id=False):
+def make_filepath(filepath, resource_id, headers=None, name_from_id=False):
     """Creates the output filepath of a resource from filestore.
 
     Args:
@@ -156,8 +155,8 @@ def make_filepath(filepath, headers=None, name_from_id=False):
             disposition = headers.get('content-disposition', '')
             filename = disposition.split('=')[1].split('"')[1]
         except (KeyError, IndexError):
-            filename = p.basename(url)
-    elif isdir:
+            filename = p.basename(filepath)
+    elif name_from_id:
         filename = resource_id
 
     if isdir and filename.startswith('export?format='):

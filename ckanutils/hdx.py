@@ -8,14 +8,13 @@ from __future__ import (
     absolute_import, division, print_function, with_statement,
     unicode_literals)
 
-import traceback
 import sys
 
 from pprint import pprint
 from operator import itemgetter
 from time import time, strptime
 from datetime import datetime
-from os import unlink, getcwd, environ, path as p
+from os import environ
 from manager import Manager
 from . import api, utils, datastorer as ds
 
@@ -31,8 +30,8 @@ def get_field(fields, field):
 
 def gen_fuzzies(fields, possible):
     for f in fields:
-        for p in possible:
-            if p in f.lower():
+        for i in possible:
+            if i in f.lower():
                 yield f
 
 
@@ -43,7 +42,8 @@ def gen_items(items, tagged=None, named=None):
         try:
             timestamp = (i[key] for key in keys if key in i).next()
         except StopIteration:
-            raise KeyError('None of the following keys found: %s in item' % keys)
+            raise KeyError(
+                'None of the following keys found: %s in item' % keys)
         else:
             timestamp = timestamp or i.get('created')
 
@@ -98,8 +98,9 @@ def find_where(fields):
         return ''
 
 
-def find_ids(organization, pnamed=None, ptagged=None, rnamed=None):
-    packages = list(gen_items(organization['packages'], named=pnamed, tagged=ptagged))
+def find_ids(organization, ckan, pnamed=None, ptagged=None, rnamed=None):
+    all_packages = organization['packages']
+    packages = list(gen_items(all_packages, named=pnamed, tagged=ptagged))
     sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
 
     if pnamed:
@@ -143,10 +144,22 @@ def find_ids(organization, pnamed=None, ptagged=None, rnamed=None):
     'image_rect', 'R', help='logo 300x125 (url or google doc id)',
     default='0B01Bdplw4VkCZC1vQWxJVlVGZWM')
 @manager.arg('color', 'c', help='the base color', default='#026bb5')
-@manager.arg('topline', 't', help='topline figures resource id (default: most recently updated resource containing `topline`)')
-@manager.arg('3w', 'w', help='3w data resource id (default: most recently updated resource tagged `3w`)')
-@manager.arg('geojson', 'g', help='the map boundaries geojson resource id (default: most recently updated resource matching the org country)')
-@manager.arg('where', 'W', help='The `where` field (case insensitive) (default: first column name found matching a `3w` field).')
+@manager.arg(
+    'topline', 't', help=(
+        'topline figures resource id (default: most recently updated resource'
+        ' containing `topline`)'))
+@manager.arg(
+    '3w', 'w', help=(
+        '3w data resource id (default: most recently updated resource tagged'
+        ' `3w`)'))
+@manager.arg(
+    'geojson', 'g', help=(
+        'the map boundaries geojson resource id (default: most recently '
+        'updated resource matching the org country)'))
+@manager.arg(
+    'where', 'W', help=(
+        'The `where` field (case insensitive) (default: first column name'
+        ' found matching a `3w` field).'))
 @manager.arg(
     'sanitize', 's', help='underscorify and lowercase field names', type=bool,
     default=False)
@@ -172,20 +185,21 @@ def customize(org_id, **kwargs):
     if three_dub_id:
         three_dub_set_id = ckan.get_package_id(three_dub_id)
     else:
-        ids = find_ids(organization, '3w', '3w')
+        ids = find_ids(organization, ckan, '3w', '3w')
         three_dub_set_id = ids['set_id']
         three_dub_id = ids['resource_id']
 
     if not three_dub_id:
         sys.exit(1)
 
-    topline_id = topline_id or find_ids(organization, 'topline')['resource_id']
+    if not topline_id:
+        topline_id = find_ids(organization, ckan, 'topline')['resource_id']
 
     if geojson_id:
         geojson_set_id = ckan.get_package_id(geojson_id)
     else:
         country = org_id.split('-')[1]
-        ids = find_ids(hdx, 'json-repository', rnamed=country)
+        ids = find_ids(hdx, ckan, 'json-repository', rnamed=country)
         geojson_set_id = ids['set_id']
         geojson_id = ids['resource_id']
 
@@ -209,8 +223,10 @@ def customize(org_id, **kwargs):
     def_where = find_first_common(three_dub_fields, geojson_fields) or ''
     who_column = kwargs.get('who') or find_who(three_dub_fields)
     what_column = kwargs.get('what') or find_what(three_dub_fields)
-    where_column = kwargs.get('where') or def_where or find_where(three_dub_fields)
-    where_column_2 = kwargs.get('where') or def_where or find_where(geojson_fields)
+    where_column = kwargs.get('where') or def_where or find_where(
+        three_dub_fields)
+    where_column_2 = kwargs.get('where') or def_where or find_where(
+        geojson_fields)
     name_column = kwargs.get('where') or def_where
 
     if 'http' not in image_sq:
@@ -264,7 +280,8 @@ def customize(org_id, **kwargs):
         [print(data[k]) for k in control_sheet_keys]
 
 
-def update(org_id, **kwargs):
+def update(three_dub_id, topline_id=None, **kwargs):
+    ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
     ckan = api.CKAN(**ckan_kwargs)
     ds.update(topline_id, ckan=ckan) if topline_id else None
     ds.update(three_dub_id, ckan=ckan)

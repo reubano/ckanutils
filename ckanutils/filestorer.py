@@ -10,6 +10,7 @@ from __future__ import (
 
 import traceback
 import sys
+import utils
 
 from os import unlink, getcwd, environ, path as p
 from manager import Manager
@@ -46,14 +47,16 @@ def fetch(resource_id, **kwargs):
     """Downloads a filestore resource"""
     verbose = not kwargs['quiet']
     filepath = kwargs['destination']
-    name_from_id = kwargs.get['name_from_id']
+    name_from_id = kwargs.get('name_from_id')
+    chunksize = kwargs.get('chunksize_bytes')
     ckan_kwargs = {k: v for k, v in kwargs.items() if k in api.CKAN_KEYS}
 
     try:
         ckan = api.CKAN(**ckan_kwargs)
-        r = src_ckan.fetch_resource(resource_id)
-        filepath = utils.make_filepath(filepath, r.headers, name_from_id)
-        utils.write_file(filepath, r.iter_content, chunksize=kwargs.get('chunksize_bytes'))
+        r = ckan.fetch_resource(resource_id)
+        fkwargs = {'headers': r.headers, 'name_from_id': name_from_id}
+        filepath = utils.make_filepath(filepath, resource_id, **fkwargs)
+        utils.write_file(filepath, r.iter_content, chunksize=chunksize)
 
         # save encoding to extended attributes
         x = xattr(filepath)
