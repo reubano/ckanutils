@@ -1,15 +1,24 @@
 # Config file for automatic testing at travis-ci.org
 
+sudo: false
 language: python
 
 python:
-  - "3.3"
   - "2.7"
   - "2.6"
-  - "pypy"
 
-# command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
-install: pip install -r requirements.txt
+notifications:
+  email:
+    on_success: always
+
+install: pip install -r dev-requirements.txt  --use-mirrors
 
 # command to run tests, e.g. python setup.py test
-script: python setup.py test
+script:
+  - manage lint
+  - manage test
+
+after_success:
+  - if [[ "$TRAVIS_PULL_REQUEST" == "true" ]]; then exit 0; fi
+  - if [[ "$TRAVIS_BRANCH" != "master" ]]; then exit 0; fi
+  - manage release
