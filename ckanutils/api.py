@@ -392,14 +392,16 @@ class CKAN(object):
         Examples:
             >>> ckan = CKAN(quiet=True)
             >>> url = 'http://example.com/file'
-            >>> resource = {'package_id': 'pid', 'url': url}
+            >>> resource = {'package_id': 'pid'}
             >>> message = 'Creating new resource...'
-            >>> ckan._update_resource(resource, message)
+            >>> kwargs = {'name': 'name', 'url': 'http://example.com', \
+'format': 'csv'}
+            >>> ckan._update_resource(resource, message, **kwargs)
             Package `pid` was not found.
             >>> resource.update({'resource_id': 'rid', 'name': 'name'})
             >>> resource.update({'description': 'description', 'hash': 'hash'})
             >>> message = 'Updating resource...'
-            >>> ckan._update_resource(resource, message)
+            >>> ckan._update_resource(resource, message, url=url)
             Resource `rid` was not found in filestore.
         """
         post = kwargs.pop('post', None)
