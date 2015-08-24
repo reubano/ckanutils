@@ -2,7 +2,7 @@
 Changelog
 =========
 
-Here you can find the recent changes to CKAN Utils..
+Here you can find the recent changes to CKAN-Utils..
 
 .. changelog::
     :version: dev

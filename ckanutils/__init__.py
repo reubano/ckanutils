@@ -16,11 +16,11 @@ Attributes:
     module_level_variable1 (int): Module level variables may be documented in
 """
 
-__title__ = 'CKAN Utils'
+__title__ = 'CKAN-Utils'
 __package_name__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility scripts'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.9.1'
+__version__ = '0.9.2'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
