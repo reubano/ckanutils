@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # vim: sw=4:ts=4:expandtab
 
-""" A script to test CKAN Utils functionality """
+""" A script to test CKAN-Utils functionality """
 
 from __future__ import (
     absolute_import, division, print_function, with_statement,

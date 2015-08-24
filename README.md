@@ -1,10 +1,10 @@
-# CKAN Utils
+# CKAN-Utils
 
 ## Introduction
 
-CKAN Utils is a [Python library](#library) and [command line interface](#cli) for interacting with remote and local [CKAN](http://ckan.org/) instances. It uses [ckanapi](https://github.com/ckan/ckanapi) under the hood, and is essentially a high level wrapper for it.
+CKAN-Utils is a [Python library](#library) and [command line interface](#cli) for interacting with remote and local [CKAN](http://ckan.org/) instances. It uses [ckanapi](https://github.com/ckan/ckanapi) under the hood, and is essentially a high level wrapper for it.
 
-With CKAN Utils, you can
+With CKAN-Utils, you can
 
 - Download a CKAN resource
 - Parse structured CSV/XLS/XLSX files and push them into a CKAN DataStore
@@ -12,16 +12,16 @@ With CKAN Utils, you can
 - Read and write Uñicôdë text
 - and much more...
 
-CKAN Utils performs smart updates by computing the hash of a file and will only update the datastore if the file has changed. This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
+CKAN-Utils performs smart updates by computing the hash of a file and will only update the datastore if the file has changed. This allows you to schedule a script to run on a frequent basis, e.g., `@hourly` via a cron job, without updating the CKAN instance unnecessarily.
 
 ## Requirements
 
-CKAN Utils has been tested on the following configuration:
+CKAN-Utils has been tested on the following configuration:
 
 - MacOS X 10.9.5
 - Python 2.7.9
 
-CKAN Utils requires the following in order to run properly:
+CKAN-Utils requires the following in order to run properly:
 
 - [Python >= 2.7](http://www.python.org/download) (MacOS X comes with python preinstalled)
 
@@ -33,7 +33,7 @@ CKAN Utils requires the following in order to run properly:
 
 ## CLI
 
-CKAN Utils comes with a built in command line interface `ckanny`.
+CKAN-Utils comes with a built in command line interface `ckanny`.
 
 ### Usage
 
@@ -115,7 +115,7 @@ optional arguments:
 
 ## Library
 
-CKAN Utils may also be used directly from Python.
+CKAN-Utils may also be used directly from Python.
 
 ### Examples
 
@@ -141,7 +141,7 @@ print(r.encoding)
 
 ## Configuration
 
-CKAN Utils will use the following [Environment Variables](http://www.cyberciti.biz/faq/set-environment-variable-linux/) if set:
+CKAN-Utils will use the following [Environment Variables](http://www.cyberciti.biz/faq/set-environment-variable-linux/) if set:
 
 Environment Variable|Description
 --------------------|-----------
@@ -158,7 +158,7 @@ field|type
 datastore_id|text
 hash|text
 
-By default the hash table resource will be placed the package `hash_table`. CKAN Utils will create this package if it doesn't exist. Optionally, you can set the hash table package in the command line with the `-H, --hash-table` option, or in a Python file as the `hash_table` keyword argument to `api.CKAN`.
+By default the hash table resource will be placed in the package `hash_table`. CKAN-Utils will create this package if it doesn't exist. Optionally, you can set the hash table package in the command line with the `-H, --hash-table` option, or in a Python file as the `hash_table` keyword argument to `api.CKAN`.
 
 Examples:
 
@@ -176,7 +176,7 @@ hash = ckan.get_hash('36f33846-cb43-438e-95fd-f518104a32ed')
 
 ## Scripts
 
-CKAN Utils comes with a built in task manager `manage.py` and a `Makefile`.
+CKAN-Utils comes with a built in task manager `manage.py` and a `Makefile`.
 
 ### Setup
 
@@ -204,4 +204,4 @@ View [CONTRIBUTING.rst](https://github.com/reubano/ckanutils/blob/master/CONTRIB
 
 ## License
 
-CKAN Utils is distributed under the [MIT License](http://opensource.org/licenses/MIT), the same as [ckanapi](https://github.com/ckan/ckanapi).
+CKAN-Utils is distributed under the [MIT License](http://opensource.org/licenses/MIT), the same as [ckanapi](https://github.com/ckan/ckanapi).
