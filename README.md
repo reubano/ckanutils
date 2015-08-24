@@ -21,7 +21,7 @@ CKAN Utils has been tested on the following configuration:
 - MacOS X 10.9.5
 - Python 2.7.9
 
-Proposer requires the following in order to run properly:
+CKAN Utils requires the following in order to run properly:
 
 - [Python >= 2.7](http://www.python.org/download) (MacOS X comes with python preinstalled)
 
