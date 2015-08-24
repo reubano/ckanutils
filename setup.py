@@ -50,7 +50,12 @@ dependencies = list(parse_requirements('requirements.txt', dep=True))
 readme = read('README.rst')
 changes = read('CHANGES.rst').replace('.. :changelog:', '')
 license = ckanutils.__license__
-classifier = {'GPL': 'GNU General Public', 'MIT': 'The MIT', 'BSD': 'The BSD'}
+
+classifier = {
+    'GPL': 'GNU General Public License (GPL)',
+    'MIT': 'MIT License',
+    'BSD': 'BSD License'
+}
 
 setup(
     name=ckanutils.__title__,
@@ -70,7 +75,7 @@ setup(
     keywords=ckanutils.__title__,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
-        'License :: OSI Approved :: %s License (%s)' % (classifier[license], license),
+        'License :: OSI Approved :: %s' % classifier[license],
         'Natural Language :: English',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
