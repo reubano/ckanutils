@@ -63,7 +63,7 @@ setup(
     packages=find_packages(exclude=['docs', 'tests']),
     include_package_data=True,
     install_requires=requirements,
-    # dependency_links=dependencies,
+    dependency_links=dependencies,
     tests_require=dev_requirements,
     license=license,
     zip_safe=False,
