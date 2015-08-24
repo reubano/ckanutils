@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -ue
 # -*- coding: utf-8 -*-
 
 # Run nose and script tests
