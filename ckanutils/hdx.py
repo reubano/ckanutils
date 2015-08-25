@@ -11,119 +11,40 @@ from __future__ import (
 import sys
 
 from pprint import pprint
-from operator import itemgetter
-from time import time, strptime
-from datetime import datetime
 from os import environ
+from time import time
 from manager import Manager
-from . import api, utils, datastorer as ds
+from tabutils import process as tup
+
+from . import api, datastorer as ds
 
 manager = Manager()
 
 
-def get_field(fields, field):
+def find_field(fields, ftype='who', default=None, **kwargs):
+    possibilities = {
+        'who': ['org', 'partner'],
+        'what': ['sector', 'cluster'],
+        'where': ['code', 'state', 'region', 'province', 'township'],
+    }
+
+    field = kwargs.get(ftype) or default
+    return field or tup.find(fields, possibilities[ftype], method='fuzzy')
+
+
+def deref_field(fields, field):
     if field:
         return {f.lower(): f for f in fields if f}[field.lower()]
     else:
         return ''
 
-
-def gen_fuzzies(fields, possible):
-    for f in fields:
-        for i in possible:
-            if i in f.lower():
-                yield f
-
-
-def gen_items(items, tagged=None, named=None):
-    keys = ['metadata_modified', 'revision_timestamp', 'last_modified']
-
-    for i in items:
-        try:
-            timestamp = (i[key] for key in keys if key in i).next()
-        except StopIteration:
-            raise KeyError(
-                'None of the following keys found: %s in item' % keys)
-        else:
-            timestamp = timestamp or i.get('created')
-
-        if i['state'] != 'active':
-            continue
-
-        if timestamp:
-            i['updated'] = strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
-        else:
-            i['updated'] = datetime.now()
-
-        if named and named.lower() in i['name'].lower():
-            yield i
-        elif tagged and 'tags' in i:
-            for t in i['tags']:
-                if t['name'] == tagged:
-                    yield i
-        elif not (named or tagged):
-            yield i
-
-
-def find_first_common(*args):
-    sets = (set(i.lower() for i in arg) for arg in args)
-    intersect = reduce(lambda x, y: x.intersection(y), sets)
-
-    try:
-        return intersect.pop()
-    except KeyError:
-        return ''
-
-
-def find_who(fields):
-    try:
-        return gen_fuzzies(fields, ['org', 'partner']).next()
-    except StopIteration:
-        return ''
-
-
-def find_what(fields):
-    try:
-        return gen_fuzzies(fields, ['sector', 'cluster']).next()
-    except StopIteration:
-        return ''
-
-
-def find_where(fields):
-    possible = ['code', 'state', 'region', 'province', 'township']
-
-    try:
-        return gen_fuzzies(fields, possible).next()
-    except StopIteration:
-        return ''
-
-
-def find_ids(organization, ckan, pnamed=None, ptagged=None, rnamed=None):
-    all_packages = organization['packages']
-    packages = list(gen_items(all_packages, named=pnamed, tagged=ptagged))
-    sorted_kwargs = {'key': itemgetter('updated'), 'reverse': True}
-
-    if pnamed:
-        verb, word = 'named', pnamed
-    elif ptagged:
-        verb, word = 'tagged', ptagged
-    else:
-        verb, word = 'named', '*'
-
-    print('Searching for resources %s `%s`...' % (verb, word))
-
-    try:
-        set_id = sorted(packages, **sorted_kwargs)[0]['name']
-    except IndexError:
-        org_id = organization['id']
-        print('Error: %s has no packages %s `%s`' % (org_id, verb, word))
-        return {'resource_id': '', 'set_id': ''}
-    else:
-        found_set = ckan.package_show(id=set_id)
-        resources = list(gen_items(found_set['resources'], named=rnamed))
-        found_resource = sorted(resources, **sorted_kwargs)[0]
-        print('Selected resource: %s.' % found_resource['name'])
-        return {'resource_id': found_resource['id'], 'set_id': set_id}
+control_sheet_keys = [
+    'highlight_color', 'image_rect', 'image_sq', 'dataset_id_1',
+    'datatype_1', 'resource_id_1', 'where_column', 'description',
+    'org_url', 'title', 'dataset_id_2', 'datatype_2',
+    'map_district_name_column', 'resource_id_2', 'where_column_2',
+    'name', 'topline_resource', 'visualization_select',
+    'viz_data_link_url', 'viz_title', 'what_column', 'who_column']
 
 
 @manager.arg(
@@ -179,34 +100,36 @@ def customize(org_id, **kwargs):
 
     ckan = api.CKAN(**ckan_kwargs)
     organization = ckan.organization_show(id=org_id, include_datasets=True)
+    org_packages = organization['packages']
     hdx = ckan.organization_show(id='hdx', include_datasets=True)
     extras = {e['key']: e['value'] for e in organization['extras']}
 
     if three_dub_id:
         three_dub_set_id = ckan.get_package_id(three_dub_id)
     else:
-        ids = find_ids(organization, ckan, '3w', '3w')
-        three_dub_set_id = ids['set_id']
-        three_dub_id = ids['resource_id']
+        ids = ckan.find_ids(org_packages, pnamed='3w', ptagged='3w')
+        three_dub_set_id = ids['pname']
+        three_dub_id = ids['rid']
 
     if not three_dub_id:
         sys.exit(1)
 
     if not topline_id:
-        topline_id = find_ids(organization, ckan, 'topline')['resource_id']
+        topline_id = ckan.find_ids(org_packages, pnamed='topline')['rid']
 
     if geojson_id:
         geojson_set_id = ckan.get_package_id(geojson_id)
     else:
         country = org_id.split('-')[1]
-        ids = find_ids(hdx, ckan, 'json-repository', rnamed=country)
-        geojson_set_id = ids['set_id']
-        geojson_id = ids['resource_id']
+        hkwargs = {'pnamed': 'json-repository', 'rnamed': country}
+        ids = ckan.find_ids(hdx['packages'], **hkwargs)
+        geojson_set_id = ids['pname']
+        geojson_id = ids['rid']
 
     viz_url = '%s/dataset/%s' % (kwargs['remote'], three_dub_set_id)
     three_dub_r = ckan.fetch_resource(three_dub_id)
     _fields = three_dub_r.iter_lines().next().split(',')
-    three_dub_fields = utils.underscorify(_fields) if sanitize else _fields
+    three_dub_fields = tup.underscorify(_fields) if sanitize else _fields
 
     if geojson_id:
         geojson_r = ckan.fetch_resource(geojson_id)
@@ -220,13 +143,12 @@ def customize(org_id, **kwargs):
         print('geojson fields:')
         pprint(geojson_fields)
 
-    def_where = find_first_common(three_dub_fields, geojson_fields) or ''
-    who_column = kwargs.get('who') or find_who(three_dub_fields)
-    what_column = kwargs.get('what') or find_what(three_dub_fields)
-    where_column = kwargs.get('where') or def_where or find_where(
-        three_dub_fields)
-    where_column_2 = kwargs.get('where') or def_where or find_where(
-        geojson_fields)
+    def_where = tup.find(three_dub_fields, geojson_fields) or ''
+    who_column = find_field(three_dub_fields, 'who', **kwargs)
+    what_column = find_field(three_dub_fields, 'what', **kwargs)
+    where_column = find_field(three_dub_fields, 'where', def_where, **kwargs)
+
+    where_column_2 = find_field(geojson_fields, 'where', def_where, **kwargs)
     name_column = kwargs.get('where') or def_where
 
     if 'http' not in image_sq:
@@ -252,11 +174,11 @@ def customize(org_id, **kwargs):
         'highlight_color': kwargs.get('color'),
         'dataset_id_1': three_dub_set_id,
         'dataset_id_2': geojson_set_id,
-        'who_column': get_field(three_dub_fields, who_column),
-        'what_column': get_field(three_dub_fields, what_column),
-        'where_column': get_field(three_dub_fields, where_column),
-        'where_column_2': get_field(geojson_fields, where_column_2),
-        'map_district_name_column': get_field(geojson_fields, name_column),
+        'who_column': deref_field(three_dub_fields, who_column),
+        'what_column': deref_field(three_dub_fields, what_column),
+        'where_column': deref_field(three_dub_fields, where_column),
+        'where_column_2': deref_field(geojson_fields, where_column_2),
+        'map_district_name_column': deref_field(geojson_fields, name_column),
         'viz_data_link_url': viz_url,
         'visualization_select': kwargs.get('viz_type', '3W-dashboard'),
         'viz_title': kwargs.get('viz_title', "Who's doing what and where?"),
@@ -267,17 +189,13 @@ def customize(org_id, **kwargs):
         'modified_at': int(time()),
     }
 
-    control_sheet_keys = [
-        'highlight_color', 'image_rect', 'image_sq', 'dataset_id_1',
-        'datatype_1', 'resource_id_1', 'where_column', 'description',
-        'org_url', 'title', 'dataset_id_2', 'datatype_2',
-        'map_district_name_column', 'resource_id_2', 'where_column_2',
-        'name', 'topline_resource', 'visualization_select',
-        'viz_data_link_url', 'viz_title', 'what_column', 'who_column']
+    control_sheet_data = [data[k] for k in control_sheet_keys]
 
     if verbose:
         print('\nCustom pages control sheet data:')
-        [print(data[k]) for k in control_sheet_keys]
+        print(control_sheet_data)
+
+    return control_sheet_data
 
 
 def update(three_dub_id, topline_id=None, **kwargs):

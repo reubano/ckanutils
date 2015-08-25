@@ -11,12 +11,13 @@ from __future__ import (
 import traceback
 import sys
 
-from pprint import pprint
 from StringIO import StringIO
 from os import unlink, environ, path as p
+from tempfile import NamedTemporaryFile
 from manager import Manager
 from xattr import xattr
-from . import utils
+from tabutils import process as tup, io as tio
+
 from . import api
 
 manager = Manager()
@@ -32,79 +33,6 @@ def get_message(changed, force):
         message = 'New data found. Updating datastore...'
 
     return message
-
-
-def update_resource(ckan, resource_id, filepath, **kwargs):
-    verbose = not kwargs.get('quiet')
-    chunk_rows = kwargs.get('chunksize_rows')
-    primary_key = kwargs.get('primary_key')
-    content_type = kwargs.get('content_type')
-    type_cast = kwargs.get('type_cast')
-    method = 'upsert' if primary_key else 'insert'
-    create_keys = ['aliases', 'primary_key', 'indexes']
-
-    try:
-        extension = p.splitext(filepath)[1].split('.')[1]
-    # no file extension given, e.g., a tempfile
-    except IndexError:
-        extension = utils.ctype2ext(content_type)
-
-    switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
-
-    try:
-        parser = getattr(utils, switch[extension])
-    except IndexError:
-        print('Error: plugin for extension `%s` not found!' % extension)
-        return False
-    else:
-        parser_kwargs = {
-            'encoding': kwargs.get('encoding'),
-            'sanitize': kwargs.get('sanitize'),
-        }
-
-        records = parser(filepath, **parser_kwargs)
-        fields = list(utils.gen_fields(records.next().keys(), type_cast))
-
-        if verbose:
-            print('Parsed fields:')
-            pprint(fields)
-
-        if type_cast:
-            records = utils.gen_type_cast(records, fields)
-
-        create_kwargs = {k: v for k, v in kwargs.items() if k in create_keys}
-
-        if not primary_key:
-            ckan.delete_table(resource_id)
-
-        insert_kwargs = {'chunksize': chunk_rows, 'method': method}
-        ckan.create_table(resource_id, fields, **create_kwargs)
-        ckan.insert_records(resource_id, records, **insert_kwargs)
-        return True
-
-
-def create_hash_table(ckan, verbose):
-    kwargs = {
-        'resource_id': ckan.hash_table_id,
-        'fields': [
-            {'id': 'datastore_id', 'type': 'text'},
-            {'id': 'hash', 'type': 'text'}],
-        'primary_key': 'datastore_id'
-    }
-
-    if verbose:
-        print('Creating hash table...')
-
-    ckan.create_table(**kwargs)
-
-
-def update_hash_table(ckan, resource_id, resource_hash, verbose=False):
-    records = [{'datastore_id': resource_id, 'hash': resource_hash}]
-
-    if verbose:
-        print('Uodating hash table...')
-
-    ckan.insert_records(ckan.hash_table_id, records, method='upsert')
 
 
 @manager.arg(
@@ -153,13 +81,13 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r = ckan.fetch_resource(resource_id)
-        filepath = utils.get_temp_filepath()
+        filepath = NamedTemporaryFile(delete=False).name
         write_kwargs = {
             'length': r.headers.get('content-length'),
             'chunksize': chunk_bytes
         }
 
-        utils.write_file(filepath, r.iter_content, **write_kwargs)
+        tio.write_file(filepath, r.iter_content, **write_kwargs)
     except (api.NotFound, api.NotAuthorized) as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         filepath = None
@@ -198,10 +126,10 @@ def update(resource_id, force=None, **kwargs):
                 resource = ckan.create_resource(table, **create_kwargs)
                 ckan.hash_table_id = resource['id']
 
-            create_hash_table(ckan, verbose)
+            ckan.create_hash_table(verbose)
             old_hash = ckan.get_hash(resource_id)
 
-        new_hash = utils.hash_file(filepath, **hash_kwargs)
+        new_hash = tup.hash_file(filepath, **hash_kwargs)
         changed = new_hash != old_hash if old_hash else True
 
         if verbose:
@@ -212,13 +140,13 @@ def update(resource_id, force=None, **kwargs):
 
         kwargs['encoding'] = r.encoding
         kwargs['content_type'] = r.headers['content-type']
-        updated = update_resource(ckan, resource_id, filepath, **kwargs)
+        updated = ckan.update_datastore(resource_id, filepath, **kwargs)
 
         if updated and verbose:
             print('Success! Resource %s updated.' % resource_id)
 
         if updated and changed:
-            update_hash_table(ckan, resource_id, new_hash, verbose)
+            ckan.update_hash_table(resource_id, new_hash, verbose)
         elif not updated:
             sys.stderr.write('ERROR: resource %s not updated.' % resource_id)
             traceback.print_exc(file=sys.stdout)
@@ -292,7 +220,7 @@ def upload(source, resource_id=None, **kwargs):
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
 
-    if update_resource(ckan, resource_id, source, **kwargs):
+    if ckan.update_datastore(resource_id, source, **kwargs):
         print('Success! Resource %s uploaded.' % resource_id)
     else:
         sys.stderr.write('ERROR: resource %s not uploaded.' % resource_id)

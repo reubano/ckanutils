@@ -27,10 +27,11 @@ def check():
     call(p.join(_basedir, 'helpers', 'check-stage'), shell=True)
 
 
+@manager.arg('where', 'w', help='Modules to check')
 @manager.command
-def lint():
+def lint(where=None):
     """Check style with flake8"""
-    call('flake8 ckanutils tests', shell=True)
+    call('flake8 %s' % (where if where else ''), shell=True)
 
 
 @manager.command
@@ -55,7 +56,7 @@ def test():
 @manager.command
 def register():
     """Register package with PyPI"""
-    call('python setup.py register')
+    call('python %s register' % p.join(_basedir, 'setup.py'), shell=True)
 
 
 @manager.command
