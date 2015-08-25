@@ -14,9 +14,11 @@ import sys
 from pprint import pprint
 from StringIO import StringIO
 from os import unlink, environ, path as p
+from tempfile import NamedTemporaryFile
 from manager import Manager
 from xattr import xattr
-from . import utils
+from tabutils import process as tup, io as tio
+
 from . import api
 
 manager = Manager()
@@ -153,13 +155,13 @@ def update(resource_id, force=None, **kwargs):
     try:
         ckan = api.CKAN(**ckan_kwargs)
         r = ckan.fetch_resource(resource_id)
-        filepath = utils.get_temp_filepath()
+        filepath = NamedTemporaryFile(delete=False).name
         write_kwargs = {
             'length': r.headers.get('content-length'),
             'chunksize': chunk_bytes
         }
 
-        utils.write_file(filepath, r.iter_content, **write_kwargs)
+        tio.write_file(filepath, r.iter_content, **write_kwargs)
     except (api.NotFound, api.NotAuthorized) as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         filepath = None
@@ -201,7 +203,7 @@ def update(resource_id, force=None, **kwargs):
             create_hash_table(ckan, verbose)
             old_hash = ckan.get_hash(resource_id)
 
-        new_hash = utils.hash_file(filepath, **hash_kwargs)
+        new_hash = tup.hash_file(filepath, **hash_kwargs)
         changed = new_hash != old_hash if old_hash else True
 
         if verbose:

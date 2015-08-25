@@ -24,8 +24,10 @@ import requests
 import ckanapi
 
 from os import environ, path as p
-from . import utils, __version__ as version
 from ckanapi import NotFound, NotAuthorized
+from tabutils import process as tup, io as tio
+
+from . import __version__ as version
 
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
@@ -240,7 +242,7 @@ class CKAN(object):
         kwargs['resource_id'] = resource_id
         count = 1
 
-        for chunk in utils.chunk(records, chunksize, start=start, stop=stop):
+        for chunk in tup.chunk(records, chunksize, start=start, stop=stop):
             length = len(chunk)
 
             if self.verbose:

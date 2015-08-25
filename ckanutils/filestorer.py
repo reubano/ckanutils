@@ -12,9 +12,13 @@ import traceback
 import sys
 
 from os import unlink, getcwd, environ, path as p
+from tempfile import NamedTemporaryFile
+
 from manager import Manager
 from xattr import xattr
-from . import api, utils
+from tabutils import process as tup, io as tio
+
+from . import api
 
 manager = Manager()
 
@@ -58,8 +62,8 @@ def fetch(resource_id, **kwargs):
             'name_from_id': name_from_id,
             'resource_id': resource_id}
 
-        filepath = utils.make_filepath(filepath, **fkwargs)
-        utils.write_file(filepath, r.iter_content, chunksize=chunksize)
+        filepath = tup.make_filepath(filepath, **fkwargs)
+        tio.write_file(filepath, r.iter_content, chunksize=chunksize)
 
         # save encoding to extended attributes
         x = xattr(filepath)
@@ -120,8 +124,8 @@ def migrate(resource_id, **kwargs):
         src_ckan = api.CKAN(remote=src_remote, **ckan_kwargs)
         dest_ckan = api.CKAN(remote=dest_remote, **ckan_kwargs)
         r = src_ckan.fetch_resource(resource_id)
-        filepath = utils.get_temp_filepath()
-        utils.write_file(filepath, r.raw.read(), chunksize=chunksize)
+        filepath = NamedTemporaryFile(delete=False).name
+        tio.write_file(filepath, r.raw.read(), chunksize=chunksize)
     except api.NotAuthorized as err:
         sys.stderr.write('ERROR: %s\n' % str(err))
         sys.exit(1)
