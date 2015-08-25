@@ -25,7 +25,7 @@ import ckanapi
 import itertools as it
 
 from os import environ, path as p
-from time import strptime
+from datetime import datetime as dt
 from operator import itemgetter
 from pprint import pprint
 
@@ -685,7 +685,7 @@ class CKAN(object):
             # print('Resource timestamp is empty. Querying revision.')
             timestamp = self.revision_show(id=item['revision_id'])['timestamp']
 
-        return strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
+        return dt.strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
 
     def filter(self, items, tagged=None, named=None, updated=None):
         for i in items:
