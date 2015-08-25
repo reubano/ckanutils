@@ -67,7 +67,7 @@ setup(
     author=ckanutils.__author__,
     author_email=ckanutils.__email__,
     url='https://github.com/reubano/ckanutils',
-    packages=find_packages(exclude=['docs', 'tests']),
+    py_modules=['ckanutils'],
     include_package_data=True,
     install_requires=requirements,
     dependency_links=dependencies,
@@ -76,7 +76,7 @@ setup(
     zip_safe=False,
     keywords=ckanutils.__title__,
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'License :: OSI Approved :: %s' % classifier[license],
         'Natural Language :: English',
         'Programming Language :: Python :: 2',
@@ -89,5 +89,4 @@ setup(
         'Operating System :: POSIX :: Linux',
     ],
     platforms=['MacOS X', 'Windows', 'Linux'],
-    scripts=[p.join('bin', 'ckanny')],
 )

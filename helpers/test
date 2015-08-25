@@ -1,7 +1,0 @@
-#!/usr/bin/env bash -ue
-# -*- coding: utf-8 -*-
-
-# Run nose and script tests
-
-nosetests -xv
-python tests/test_script.py

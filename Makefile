@@ -29,7 +29,7 @@ lint:
 	flake8 ckanutils tests
 
 test:
-	helpers/test
+	nosetests -xv
 
 release:
 	sdist wheel upload

@@ -47,10 +47,11 @@ def require():
     call(cmd, shell=True)
 
 
+@manager.arg('stop', 'x', help='Stop after first error', type=bool)
 @manager.command
-def test():
+def test(stop=False):
     """Run nose and script tests"""
-    call(p.join(_basedir, 'helpers', 'test'), shell=True)
+    call('nosetests -v%s ckanutils' % ('x' if stop else ''), shell=True)
 
 
 @manager.command
