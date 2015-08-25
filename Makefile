@@ -31,7 +31,8 @@ lint:
 test:
 	helpers/test
 
-release: sdist wheel upload
+release:
+	sdist wheel upload
 
 register:
 	python setup.py register
