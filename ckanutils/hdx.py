@@ -12,6 +12,7 @@ import sys
 
 from pprint import pprint
 from os import environ
+from time import time
 from manager import Manager
 from tabutils import process as tup
 
@@ -37,6 +38,13 @@ def deref_field(fields, field):
     else:
         return ''
 
+control_sheet_keys = [
+    'highlight_color', 'image_rect', 'image_sq', 'dataset_id_1',
+    'datatype_1', 'resource_id_1', 'where_column', 'description',
+    'org_url', 'title', 'dataset_id_2', 'datatype_2',
+    'map_district_name_column', 'resource_id_2', 'where_column_2',
+    'name', 'topline_resource', 'visualization_select',
+    'viz_data_link_url', 'viz_title', 'what_column', 'who_column']
 
 
 @manager.arg(
@@ -92,29 +100,31 @@ def customize(org_id, **kwargs):
 
     ckan = api.CKAN(**ckan_kwargs)
     organization = ckan.organization_show(id=org_id, include_datasets=True)
+    org_packages = organization['packages']
     hdx = ckan.organization_show(id='hdx', include_datasets=True)
     extras = {e['key']: e['value'] for e in organization['extras']}
 
     if three_dub_id:
         three_dub_set_id = ckan.get_package_id(three_dub_id)
     else:
-        ids = find_ids(organization, ckan, '3w', '3w')
-        three_dub_set_id = ids['set_id']
-        three_dub_id = ids['resource_id']
+        ids = ckan.find_ids(org_packages, pnamed='3w', ptagged='3w')
+        three_dub_set_id = ids['pname']
+        three_dub_id = ids['rid']
 
     if not three_dub_id:
         sys.exit(1)
 
     if not topline_id:
-        topline_id = find_ids(organization, ckan, 'topline')['resource_id']
+        topline_id = ckan.find_ids(org_packages, pnamed='topline')['rid']
 
     if geojson_id:
         geojson_set_id = ckan.get_package_id(geojson_id)
     else:
         country = org_id.split('-')[1]
-        ids = find_ids(hdx, ckan, 'json-repository', rnamed=country)
-        geojson_set_id = ids['set_id']
-        geojson_id = ids['resource_id']
+        hkwargs = {'pnamed': 'json-repository', 'rnamed': country}
+        ids = ckan.find_ids(hdx['packages'], **hkwargs)
+        geojson_set_id = ids['pname']
+        geojson_id = ids['rid']
 
     viz_url = '%s/dataset/%s' % (kwargs['remote'], three_dub_set_id)
     three_dub_r = ckan.fetch_resource(three_dub_id)
@@ -179,17 +189,13 @@ def customize(org_id, **kwargs):
         'modified_at': int(time()),
     }
 
-    control_sheet_keys = [
-        'highlight_color', 'image_rect', 'image_sq', 'dataset_id_1',
-        'datatype_1', 'resource_id_1', 'where_column', 'description',
-        'org_url', 'title', 'dataset_id_2', 'datatype_2',
-        'map_district_name_column', 'resource_id_2', 'where_column_2',
-        'name', 'topline_resource', 'visualization_select',
-        'viz_data_link_url', 'viz_title', 'what_column', 'who_column']
+    control_sheet_data = [data[k] for k in control_sheet_keys]
 
     if verbose:
         print('\nCustom pages control sheet data:')
-        [print(data[k]) for k in control_sheet_keys]
+        print(control_sheet_data)
+
+    return control_sheet_data
 
 
 def update(three_dub_id, topline_id=None, **kwargs):

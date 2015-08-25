@@ -134,7 +134,7 @@ def migrate(resource_id, **kwargs):
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
     else:
-        resource = dest_ckan.update_resource(resource_id, filepath=filepath)
+        resource = dest_ckan.update_filestore(resource_id, filepath=filepath)
 
         if resource and verbose:
             print('Success! Resource %s updated.' % resource_id)
@@ -193,7 +193,7 @@ def upload(source, resource_id=None, package_id=None, **kwargs):
     if package_id:
         resource = ckan.create_resource(package_id, **resource_kwargs)
     else:
-        resource = ckan.update_resource(resource_id, **resource_kwargs)
+        resource = ckan.update_filestore(resource_id, **resource_kwargs)
 
     if package_id and resource and verbose:
         infix = '%s ' % resource['id'] if resource.get('id') else ''

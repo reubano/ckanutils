@@ -22,8 +22,13 @@ from __future__ import (
 
 import requests
 import ckanapi
+import itertools as it
 
 from os import environ, path as p
+from time import strptime
+from operator import itemgetter
+from pprint import pprint
+
 from ckanapi import NotFound, NotAuthorized
 from tabutils import process as tup, io as tio
 
@@ -369,7 +374,7 @@ class CKAN(object):
         else:
             return r
 
-    def _update_resource(self, resource, message, **kwargs):
+    def _update_filestore(self, resource, message, **kwargs):
         """Helps create or update a single resource on filestore.
         To create a resource, you must supply either `url`, `filepath`, or
         `fileobj`.
@@ -398,12 +403,12 @@ class CKAN(object):
             >>> message = 'Creating new resource...'
             >>> kwargs = {'name': 'name', 'url': 'http://example.com', \
 'format': 'csv'}
-            >>> ckan._update_resource(resource, message, **kwargs)
+            >>> ckan._update_filestore(resource, message, **kwargs)
             Package `pid` was not found.
             >>> resource.update({'resource_id': 'rid', 'name': 'name'})
             >>> resource.update({'description': 'description', 'hash': 'hash'})
             >>> message = 'Updating resource...'
-            >>> ckan._update_resource(resource, message, url=url)
+            >>> ckan._update_filestore(resource, message, url=url)
             Resource `rid` was not found in filestore.
         """
         post = kwargs.pop('post', None)
@@ -516,9 +521,9 @@ class CKAN(object):
         kwargs['format'] = file_format
         resource = {'package_id': package_id}
         message = 'Creating new resource in package %s...' % package_id
-        return self._update_resource(resource, message, **kwargs)
+        return self._update_filestore(resource, message, **kwargs)
 
-    def update_resource(self, resource_id, **kwargs):
+    def update_filestore(self, resource_id, **kwargs):
         """Updates a single resource on filestore.
 
         Args:
@@ -539,7 +544,7 @@ class CKAN(object):
                 ckan resource object otherwise.
 
         Examples:
-            >>> CKAN(quiet=True).update_resource('rid')
+            >>> CKAN(quiet=True).update_filestore('rid')
             Resource `rid` was not found in filestore.
         """
         try:
@@ -551,7 +556,62 @@ class CKAN(object):
         else:
             resource['package_id'] = self.get_package_id(resource_id)
             message = 'Updating resource %s...' % resource_id
-            return self._update_resource(resource, message, **kwargs)
+            return self._update_filestore(resource, message, **kwargs)
+
+    def update_datastore(self, resource_id, filepath, **kwargs):
+        verbose = not kwargs.get('quiet')
+        chunk_rows = kwargs.get('chunksize_rows')
+        primary_key = kwargs.get('primary_key')
+        content_type = kwargs.get('content_type')
+        type_cast = kwargs.get('type_cast')
+        method = 'upsert' if primary_key else 'insert'
+        keys = ['aliases', 'primary_key', 'indexes']
+
+        try:
+            extension = p.splitext(filepath)[1].split('.')[1]
+        except IndexError:
+            # no file extension given, e.g., a tempfile
+            extension = tup.ctype2ext(content_type)
+
+        switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
+
+        try:
+            parser = getattr(tio, switch[extension])
+        except IndexError:
+            print('Error: plugin for extension `%s` not found!' % extension)
+            return False
+        else:
+            parser_kwargs = {
+                'encoding': kwargs.get('encoding'),
+                'sanitize': kwargs.get('sanitize'),
+            }
+
+            records = parser(filepath, **parser_kwargs)
+            fields = list(tup.gen_fields(records.next().keys(), type_cast))
+
+            if verbose:
+                print('Parsed fields:')
+                pprint(fields)
+
+            if type_cast:
+                casted_records = tup.gen_type_cast(records, fields)
+            else:
+                casted_records = records
+
+            create_kwargs = {k: v for k, v in kwargs.items() if k in keys}
+
+            if not primary_key:
+                self.delete_table(resource_id)
+
+            insert_kwargs = {'chunksize': chunk_rows, 'method': method}
+            self.create_table(resource_id, fields, **create_kwargs)
+            args = [resource_id, casted_records]
+            return self.insert_records(*args, **insert_kwargs)
+
+        def find_ids(self, packages, **kwargs):
+            default = {'rid': '', 'pname': ''}
+            kwargs.update({'method': self.query, 'default': default})
+            return tup.find(packages, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
@@ -575,3 +635,90 @@ class CKAN(object):
         else:
             revision = self.revision_show(id=resource['revision_id'])
             return revision['packages'][0]
+
+    def create_hash_table(self, verbose=False):
+        kwargs = {
+            'resource_id': self.hash_table_id,
+            'fields': [
+                {'id': 'datastore_id', 'type': 'text'},
+                {'id': 'hash', 'type': 'text'}],
+            'primary_key': 'datastore_id'
+        }
+
+        if verbose:
+            print('Creating hash table...')
+
+        self.create_table(**kwargs)
+
+    def update_hash_table(self, resource_id, resource_hash, verbose=False):
+        records = [{'datastore_id': resource_id, 'hash': resource_hash}]
+
+        if verbose:
+            print('Uodating hash table...')
+
+        self.insert_records(self.hash_table_id, records, method='upsert')
+
+    def get_update_date(self, item):
+        timestamps = {
+            'revision_timestamp': 'revision',
+            'last_modified': 'resource',
+            'metadata_modified': 'package'
+        }
+
+        for key, value in timestamps.items():
+            if key in item:
+                timestamp = item[key]
+                item_type = value
+                break
+        else:
+            keys = timestamps.keys()
+            msg = 'None of the following keys found in item: %s' % keys
+            raise TypeError(msg)
+
+        if not timestamp and item_type == 'resource':
+            # print('Resource timestamp is empty. Querying revision.')
+            timestamp = self.revision_show(id=item['revision_id'])['timestamp']
+
+        return strptime(timestamp, '%Y-%m-%dT%H:%M:%S.%f')
+
+    def filter(self, items, tagged=None, named=None, updated=None):
+        for i in items:
+            if i['state'] != 'active':
+                continue
+
+            if updated and updated(self.get_update_date(i)):
+                yield i
+                continue
+
+            if named and named.lower() in i['name'].lower():
+                yield i
+                continue
+
+            tags = it.imap(itemgetter('name'), i['tags'])
+            is_tagged = tagged and 'tags' in i
+
+            if is_tagged and any(it.ifilter(lambda t: t == tagged, tags)):
+                yield i
+                continue
+
+            if not (named or tagged or updated):
+                yield i
+
+    def query(self, packages, **kwargs):
+        pkwargs = {
+            'named': kwargs.get('pnamed'),
+            'tagged': kwargs.get('ptagged')}
+
+        rkwargs = {
+            'named': kwargs.get('rnamed'),
+            'tagged': kwargs.get('rtagged')}
+
+        skwargs = {'key': self.get_update_date, 'reverse': True}
+        filtered_packages = self.filter(packages, **pkwargs)
+
+        for p in sorted(filtered_packages, **skwargs):
+            package = self.package_show(id=p['name'])
+            resources = self.filter(package['resources'], **rkwargs)
+
+            for resource in sorted(resources, **skwargs):
+                yield {'rid': resource['id'], 'pname': package['name']}
