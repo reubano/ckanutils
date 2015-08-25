@@ -36,20 +36,22 @@ ckanutils is intended to be used directly from Python.
 *Fetch a remote resource*
 
 ```python
-from ckanutils import api
+from ckanutils import CKAN
 
-kwargs = {'api_key': 'mykey', 'remote': 'http://demo.ckan.org'}
+ckan = CKAN(api_key='mykey', remote='http://demo.ckan.org')
 resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
-r, filepath = ckan.fetch_resource(resource_id, filepath='test.csv')
+r, filepath = ckan.fetch_resource(resource_id, filepath='path/to/file.csv')
 print(r.encoding)
 ```
 
 *Fetch a local resource*
 
 ```python
-ckan = api.CKAN(api_key='mykey', remote=None)
+from ckanutils import CKAN
+
+ckan = CKAN(api_key='mykey', remote=None)
 resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
-r, filepath = ckan.fetch_resource(resource_id, filepath='test.csv')
+r, filepath = ckan.fetch_resource(resource_id, filepath='path/to/file.csv')
 print(r.encoding)
 ```
 
