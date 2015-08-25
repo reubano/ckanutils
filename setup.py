@@ -49,7 +49,7 @@ sys.dont_write_bytecode = True
 requirements = list(parse_requirements('requirements.txt'))
 dev_requirements = list(parse_requirements('dev-requirements.txt'))
 dependencies = list(parse_requirements('requirements.txt', dep=True))
-readme = read('README.rst')
+readme = read('README.md')
 changes = read('CHANGES.rst').replace('.. :changelog:', '')
 license = ckanutils.__license__
 
@@ -63,7 +63,7 @@ setup(
     name=ckanutils.__title__,
     version=ckanutils.__version__,
     description=ckanutils.__description__,
-    long_description=readme + '\n\n' + changes,
+    long_description=readme,
     author=ckanutils.__author__,
     author_email=ckanutils.__email__,
     url='https://github.com/reubano/ckanutils',
