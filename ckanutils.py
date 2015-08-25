@@ -2,8 +2,8 @@
 # vim: sw=4:ts=4:expandtab
 
 """
-ckanutils.api
-~~~~~~~~~~~~~
+ckanutils
+~~~~~~~~~
 
 Provides methods for interacting with a CKAN instance
 
@@ -32,13 +32,19 @@ from pprint import pprint
 from ckanapi import NotFound, NotAuthorized
 from tabutils import process as tup, io as tio
 
-from . import __version__ as version
+__title__ = 'ckanutils'
+__author__ = 'Reuben Cummings'
+__description__ = 'Miscellaneous CKAN utility library'
+__email__ = 'reubano@gmail.com'
+__version__ = '0.10.0'
+__license__ = 'MIT'
+__copyright__ = 'Copyright 2015 Reuben Cummings'
 
 CKAN_KEYS = ['hash_table', 'remote', 'api_key', 'ua', 'force', 'quiet']
 API_KEY_ENV = 'CKAN_API_KEY'
 REMOTE_ENV = 'CKAN_REMOTE_URL'
 UA_ENV = 'CKAN_USER_AGENT'
-DEF_USER_AGENT = 'ckanutils/%s' % version
+DEF_USER_AGENT = 'ckanutils/%s' % __version__
 DEF_HASH_PACK = 'hash-table'
 DEF_HASH_RES = 'hash-table.csv'
 CHUNKSIZE_ROWS = 10 ** 3
@@ -76,7 +82,7 @@ class CKAN(object):
 
         Examples:
             >>> CKAN()  #doctest: +ELLIPSIS
-            <ckanutils.api.CKAN object at 0x...>
+            <ckanutils.CKAN object at 0x...>
         """
         default_ua = environ.get(UA_ENV, DEF_USER_AGENT)
         def_remote = environ.get(REMOTE_ENV)
