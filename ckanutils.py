@@ -36,7 +36,7 @@ __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.11.0'
+__version__ = '0.11.1'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
