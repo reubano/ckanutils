@@ -29,14 +29,14 @@ from datetime import datetime as dt
 from operator import itemgetter
 from pprint import pprint
 
-from ckanapi import NotFound, NotAuthorized
+from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import process as tup, io as tio
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.11.5'
+__version__ = '0.11.6'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
@@ -163,7 +163,7 @@ class CKAN(object):
 
         try:
             return self.datastore_create(**kwargs)
-        except ckanapi.ValidationError as err:
+        except ValidationError as err:
             if err.error_dict.get('resource_id') == [u'Not found: Resource']:
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
@@ -207,7 +207,7 @@ class CKAN(object):
                 print(
                     "Can't delete. Table `%s` was not found in datastore." %
                     resource_id)
-        except ckanapi.ValidationError as err:
+        except ValidationError as err:
             if 'read-only' in err.error_dict:
                 print(
                     "Can't delete. Datastore table is read only. Set "
@@ -442,7 +442,7 @@ class CKAN(object):
             if post:
                 r = requests.post(url, **data)
             else:
-                # resource_create is supposed to return the create resource,
+                # resource_create is supposed to return the created resource,
                 # but doesn't for whatever reason
                 self.resource_create(**data)
                 r = {'id': None}
@@ -516,7 +516,7 @@ class CKAN(object):
         else:
             # copy/pasted from utils... fix later
             if 'format=' in path:
-                file_format = path.split('format=')[1]
+                file_format = path.split('format=')[1].split('&')[0]
             else:
                 file_format = p.splitext(path)[1].lstrip('.')
 
@@ -660,7 +660,7 @@ class CKAN(object):
         records = [{'datastore_id': resource_id, 'hash': resource_hash}]
 
         if verbose:
-            print('Uodating hash table...')
+            print('Updating hash table...')
 
         self.insert_records(self.hash_table_id, records, method='upsert')
 
