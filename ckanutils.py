@@ -442,7 +442,7 @@ class CKAN(object):
             if post:
                 r = requests.post(url, **data)
             else:
-                # resource_create is supposed to return the create resource,
+                # resource_create is supposed to return the created resource,
                 # but doesn't for whatever reason
                 self.resource_create(**data)
                 r = {'id': None}
@@ -660,7 +660,7 @@ class CKAN(object):
         records = [{'datastore_id': resource_id, 'hash': resource_hash}]
 
         if verbose:
-            print('Uodating hash table...')
+            print('Updating hash table...')
 
         self.insert_records(self.hash_table_id, records, method='upsert')
 
