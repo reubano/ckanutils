@@ -516,7 +516,7 @@ class CKAN(object):
         else:
             # copy/pasted from utils... fix later
             if 'format=' in path:
-                file_format = path.split('format=')[1]
+                file_format = path.split('format=')[1].split('&')[0]
             else:
                 file_format = p.splitext(path)[1].lstrip('.')
 
