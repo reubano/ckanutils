@@ -167,7 +167,7 @@ class CKAN(object):
         try:
             return self.datastore_create(**kwargs)
         except ValidationError as err:
-            if err.error_dict.get('resource_id') == [u'Not found: Resource']:
+            if err.error_dict.get('resource_id') == [u'Not found: File']:
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
             else:
