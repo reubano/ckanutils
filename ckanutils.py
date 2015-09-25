@@ -36,7 +36,7 @@ __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.11.6'
+__version__ = '0.12.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
@@ -125,6 +125,9 @@ class CKAN(object):
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
         self.organization_show = ckan.action.organization_show
+        self.license_list = ckan.action.license_list
+        self.group_list = ckan.action.group_list
+        self.user = ckan.action.get_site_user()
 
     def create_table(self, resource_id, fields, **kwargs):
         """Creates a datastore table for an existing filestore resource.
