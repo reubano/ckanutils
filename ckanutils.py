@@ -29,7 +29,7 @@ from datetime import datetime as dt
 from operator import itemgetter
 from pprint import pprint
 
-from ckanapi import NotFound, NotAuthorized
+from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import process as tup, io as tio
 
 __title__ = 'ckanutils'
@@ -163,7 +163,7 @@ class CKAN(object):
 
         try:
             return self.datastore_create(**kwargs)
-        except ckanapi.ValidationError as err:
+        except ValidationError as err:
             if err.error_dict.get('resource_id') == [u'Not found: Resource']:
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
@@ -207,7 +207,7 @@ class CKAN(object):
                 print(
                     "Can't delete. Table `%s` was not found in datastore." %
                     resource_id)
-        except ckanapi.ValidationError as err:
+        except ValidationError as err:
             if 'read-only' in err.error_dict:
                 print(
                     "Can't delete. Datastore table is read only. Set "
