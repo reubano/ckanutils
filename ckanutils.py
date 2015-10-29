@@ -36,7 +36,7 @@ __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.12.1'
+__version__ = '0.13.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
@@ -122,6 +122,7 @@ class CKAN(object):
         self.resource_show = ckan.action.resource_show
         self.resource_create = ckan.action.resource_create
         self.package_create = ckan.action.package_create
+        self.package_privatize = ckan.action.bulk_update_private
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
         self.organization_show = ckan.action.organization_show
@@ -167,7 +168,7 @@ class CKAN(object):
         try:
             return self.datastore_create(**kwargs)
         except ValidationError as err:
-            if err.error_dict.get('resource_id') == [u'Not found: Resource']:
+            if err.error_dict.get('resource_id') == [u'Not found: File']:
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
             else:
