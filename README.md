@@ -38,7 +38,7 @@ ckanutils is intended to be used directly from Python.
 ```python
 from ckanutils import CKAN
 
-ckan = CKAN(api_key='mykey', remote='http://demo.ckan.org')
+ckan = CKAN(remote='http://demo.ckan.org')
 resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
 r, filepath = ckan.fetch_resource(resource_id, filepath='path/to/file.csv')
 print(r.encoding)
@@ -52,7 +52,17 @@ from ckanutils import CKAN
 ckan = CKAN(api_key='mykey', remote=None)
 resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
 r, filepath = ckan.fetch_resource(resource_id, filepath='path/to/file.csv')
-print(r.encoding)
+print r.encoding
+```
+*show data*
+
+```python
+from ckanutils import CKAN
+
+ckan = CKAN(api_key='mykey', remote=None)
+resource_id = '36f33846-cb43-438e-95fd-f518104a32ed'
+r = ckan.datastore_search(resource_id)
+print r.next()
 ```
 
 ## Configuration
