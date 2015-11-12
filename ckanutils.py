@@ -478,6 +478,8 @@ class CKAN(object):
             data = {
                 k: v for k, v in resource.items() if not isinstance(v, dict)}
 
+        resource_id = resource['resource_id']
+
         try:
             if post:
                 r = requests.post(url, **data)
@@ -490,8 +492,7 @@ class CKAN(object):
             # Keep exception message consistent with the others
             if 'resource_id' in resource:
                 print(
-                    'Resource `%s` was not found in filestore.' %
-                    resource['resource_id'])
+                    'Resource `%s` was not found in filestore.' % resource_id)
             else:
                 print('Package `%s` was not found.' % resource['package_id'])
         except ValidationError as err:
