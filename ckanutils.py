@@ -30,7 +30,7 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import process as tup, io as tio
+from tabutils import process as pr, io, fntools as ft, convert as cv
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
@@ -274,7 +274,7 @@ class CKAN(object):
         kwargs['resource_id'] = resource_id
         count = 1
 
-        for chunk in tup.chunk(records, chunksize, start=start, stop=stop):
+        for chunk in ft.chunk(records, chunksize, start=start, stop=stop):
             length = len(chunk)
 
             if self.verbose:
@@ -628,12 +628,12 @@ class CKAN(object):
             extension = p.splitext(filepath)[1].split('.')[1]
         except IndexError:
             # no file extension given, e.g., a tempfile
-            extension = tup.ctype2ext(content_type)
+            extension = cv.ctype2ext(content_type)
 
         switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
 
         try:
-            parser = getattr(tio, switch[extension])
+            parser = getattr(io, switch[extension])
         except IndexError:
             print('Error: plugin for extension `%s` not found!' % extension)
             return False
@@ -644,14 +644,14 @@ class CKAN(object):
             }
 
             records = parser(filepath, **parser_kwargs)
-            fields = list(tup.gen_fields(records.next().keys(), type_cast))
+            fields = list(pr.gen_fields(records.next().keys(), type_cast))
 
             if verbose:
                 print('Parsed fields:')
                 pprint(fields)
 
             if type_cast:
-                casted_records = tup.gen_type_cast(records, fields)
+                casted_records = pr.gen_type_cast(records, fields)
             else:
                 casted_records = records
 
@@ -668,7 +668,7 @@ class CKAN(object):
         def find_ids(self, packages, **kwargs):
             default = {'rid': '', 'pname': ''}
             kwargs.update({'method': self.query, 'default': default})
-            return tup.find(packages, **kwargs)
+            return pr.find(packages, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
