@@ -32,11 +32,12 @@ from pprint import pprint
 from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import process as pr, io, fntools as ft, convert as cv
 
+__version__ = '0.14.0'
+
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.13.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
