@@ -30,13 +30,14 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import process as tup, io as tio
+from tabutils import process as pr, io, fntools as ft, convert as cv
+
+__version__ = '0.14.0'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
 __description__ = 'Miscellaneous CKAN utility library'
 __email__ = 'reubano@gmail.com'
-__version__ = '0.13.0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015 Reuben Cummings'
 
@@ -107,6 +108,11 @@ class CKAN(object):
             self.hash_table_pack = self.package_show(id=self.hash_table)
         except NotFound:
             self.hash_table_pack = None
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                self.hash_table_pack = None
+            else:
+                raise err
 
         try:
             self.hash_table_id = self.hash_table_pack['resources'][0]['id']
@@ -122,6 +128,7 @@ class CKAN(object):
         self.resource_show = ckan.action.resource_show
         self.resource_create = ckan.action.resource_create
         self.package_create = ckan.action.package_create
+        self.package_update = ckan.action.package_update
         self.package_privatize = ckan.action.bulk_update_private
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
@@ -168,7 +175,7 @@ class CKAN(object):
         try:
             return self.datastore_create(**kwargs)
         except ValidationError as err:
-            if err.error_dict.get('resource_id') == [u'Not found: File']:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
             else:
@@ -218,6 +225,17 @@ class CKAN(object):
                     "'force' to True and try again.")
 
                 result = None
+            elif err.error_dict.get('resource_id') == ['Not found: Resource']:
+                if self.verbose:
+                    print(
+                        "Can't delete. Table `%s` was not found in datastore." %
+                        resource_id)
+
+                result = None
+            else:
+                raise err
+        else:
+            raise err
 
         return result
 
@@ -257,7 +275,7 @@ class CKAN(object):
         kwargs['resource_id'] = resource_id
         count = 1
 
-        for chunk in tup.chunk(records, chunksize, start=start, stop=stop):
+        for chunk in ft.chunk(records, chunksize, start=start, stop=stop):
             length = len(chunk)
 
             if self.verbose:
@@ -279,6 +297,12 @@ class CKAN(object):
                 # Keep exception message consistent with the others
                 raise NotFound(
                     'Resource `%s` was not found in filestore.' % resource_id)
+            except ValidationError as err:
+                if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                    raise NotFound(
+                        'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
 
             count += length
 
@@ -327,6 +351,12 @@ class CKAN(object):
                 self.hash_table_id)
 
             raise NotFound({'message': message, 'item': 'datastore'})
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
         except IndexError:
             if self.verbose:
                 print(
@@ -369,6 +399,12 @@ class CKAN(object):
             # Keep exception message consistent with the others
             raise NotFound(
                 'Resource `%s` was not found in filestore.' % resource_id)
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
 
         url = resource.get('perma_link') or resource.get('url')
 
@@ -458,6 +494,12 @@ class CKAN(object):
                     resource['resource_id'])
             else:
                 print('Package `%s` was not found.' % resource['package_id'])
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
 
             return None
         except requests.exceptions.ConnectionError as err:
@@ -563,6 +605,12 @@ class CKAN(object):
             # Keep exception message consistent with the others
             print('Resource `%s` was not found in filestore.' % resource_id)
             return None
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
         else:
             resource['package_id'] = self.get_package_id(resource_id)
             message = 'Updating resource %s...' % resource_id
@@ -581,12 +629,12 @@ class CKAN(object):
             extension = p.splitext(filepath)[1].split('.')[1]
         except IndexError:
             # no file extension given, e.g., a tempfile
-            extension = tup.ctype2ext(content_type)
+            extension = cv.ctype2ext(content_type)
 
         switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
 
         try:
-            parser = getattr(tio, switch[extension])
+            parser = getattr(io, switch[extension])
         except IndexError:
             print('Error: plugin for extension `%s` not found!' % extension)
             return False
@@ -597,14 +645,14 @@ class CKAN(object):
             }
 
             records = parser(filepath, **parser_kwargs)
-            fields = list(tup.gen_fields(records.next().keys(), type_cast))
+            fields = list(pr.gen_fields(records.next().keys(), type_cast))
 
             if verbose:
                 print('Parsed fields:')
                 pprint(fields)
 
             if type_cast:
-                casted_records = tup.gen_type_cast(records, fields)
+                casted_records = pr.gen_type_cast(records, fields)
             else:
                 casted_records = records
 
@@ -621,7 +669,7 @@ class CKAN(object):
         def find_ids(self, packages, **kwargs):
             default = {'rid': '', 'pname': ''}
             kwargs.update({'method': self.query, 'default': default})
-            return tup.find(packages, **kwargs)
+            return pr.find(packages, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
@@ -642,6 +690,12 @@ class CKAN(object):
             # Keep exception message consistent with the others
             print('Resource `%s` was not found in filestore.' % resource_id)
             return None
+        except ValidationError as err:
+            if err.error_dict.get('resource_id') == ['Not found: Resource']:
+                raise NotFound(
+                    'Resource `%s` was not found in filestore.' % resource_id)
+            else:
+                raise err
         else:
             revision = self.revision_show(id=resource['revision_id'])
             return revision['packages'][0]
