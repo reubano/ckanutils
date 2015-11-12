@@ -127,6 +127,7 @@ class CKAN(object):
         self.resource_show = ckan.action.resource_show
         self.resource_create = ckan.action.resource_create
         self.package_create = ckan.action.package_create
+        self.package_update = ckan.action.package_update
         self.package_privatize = ckan.action.bulk_update_private
         self.revision_show = ckan.action.revision_show
         self.organization_list = ckan.action.organization_list_for_user
