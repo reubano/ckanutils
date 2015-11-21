@@ -30,7 +30,8 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import process as pr, io, fntools as ft, convert as cv
+from tabutils import (
+    process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
 __version__ = '0.14.1'
 
@@ -642,19 +643,24 @@ class CKAN(object):
             parser_kwargs = {
                 'encoding': kwargs.get('encoding'),
                 'sanitize': kwargs.get('sanitize'),
+                'first_row': kwargs.get('first_row'),
             }
 
-            records = parser(filepath, **parser_kwargs)
-            fields = list(pr.gen_fields(records.next().keys(), type_cast))
-
-            if verbose:
-                print('Parsed fields:')
-                pprint(fields)
+            records = list(parser(filepath, **parser_kwargs))
+            keys = records[0].keys()
+            print('record', records[0])
+            print('keys', keys)
 
             if type_cast:
-                casted_records = pr.gen_type_cast(records, fields)
+                types = list(tt.guess_type_by_field(keys))
+                casted_records = pr.type_cast(records, types)
             else:
+                types = [{'id': key, 'type': 'text'} for key in keys]
                 casted_records = records
+
+            if verbose:
+                print('Parsed types:')
+                pprint(types)
 
             create_kwargs = {k: v for k, v in kwargs.items() if k in keys}
 
@@ -662,7 +668,7 @@ class CKAN(object):
                 self.delete_table(resource_id)
 
             insert_kwargs = {'chunksize': chunk_rows, 'method': method}
-            self.create_table(resource_id, fields, **create_kwargs)
+            self.create_table(resource_id, types, **create_kwargs)
             args = [resource_id, casted_records]
             return self.insert_records(*args, **insert_kwargs)
 
