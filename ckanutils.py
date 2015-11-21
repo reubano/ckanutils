@@ -33,7 +33,7 @@ from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import (
     process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
-__version__ = '0.14.1'
+__version__ = '0.14.2'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
