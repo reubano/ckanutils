@@ -234,8 +234,6 @@ class CKAN(object):
                 result = None
             else:
                 raise err
-        else:
-            raise err
 
         return result
 
@@ -284,6 +282,7 @@ class CKAN(object):
                         count, count + length - 1, resource_id))
 
             kwargs['records'] = chunk
+            err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
             try:
                 self.datastore_upsert(**kwargs)
@@ -295,14 +294,12 @@ class CKAN(object):
                     raise err
             except NotFound:
                 # Keep exception message consistent with the others
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             except ValidationError as err:
                 if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                    raise NotFound(
-                        'Resource `%s` was not found in filestore.' % resource_id)
-            else:
-                raise err
+                    raise NotFound(err_msg)
+                else:
+                    raise err
 
             count += length
 
@@ -413,10 +410,12 @@ class CKAN(object):
 
         headers = {'User-Agent': user_agent}
         r = requests.get(url, stream=stream, headers=headers)
+        err_msg = 'Access to fetch resource %s was denied.' % resource_id
 
         if any('403' in h.headers.get('x-ckan-error', '') for h in r.history):
-            raise NotAuthorized(
-                'Access to fetch resource %s was denied.' % resource_id)
+            raise NotAuthorized(err_msg)
+        elif r.status_code == 401:
+            raise NotAuthorized(err_msg)
         else:
             return r
 
@@ -628,7 +627,7 @@ class CKAN(object):
 
         try:
             extension = p.splitext(filepath)[1].split('.')[1]
-        except IndexError:
+        except (IndexError, AttributeError):
             # no file extension given, e.g., a tempfile
             extension = cv.ctype2ext(content_type)
 
