@@ -667,10 +667,10 @@ class CKAN(object):
             args = [resource_id, casted_records]
             return self.insert_records(*args, **insert_kwargs)
 
-        def find_ids(self, packages, **kwargs):
-            default = {'rid': '', 'pname': ''}
-            kwargs.update({'method': self.query, 'default': default})
-            return pr.find(packages, **kwargs)
+    def find_ids(self, packages, **kwargs):
+        default = {'rid': '', 'pname': ''}
+        kwargs.update({'method': self.query, 'default': default})
+        return pr.find(packages, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.
