@@ -30,9 +30,10 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import process as pr, io, fntools as ft, convert as cv
+from tabutils import (
+    process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
-__version__ = '0.14.1'
+__version__ = '0.14.2'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
@@ -234,8 +235,6 @@ class CKAN(object):
                 result = None
             else:
                 raise err
-        else:
-            raise err
 
         return result
 
@@ -284,6 +283,7 @@ class CKAN(object):
                         count, count + length - 1, resource_id))
 
             kwargs['records'] = chunk
+            err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
             try:
                 self.datastore_upsert(**kwargs)
@@ -295,14 +295,12 @@ class CKAN(object):
                     raise err
             except NotFound:
                 # Keep exception message consistent with the others
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             except ValidationError as err:
                 if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                    raise NotFound(
-                        'Resource `%s` was not found in filestore.' % resource_id)
-            else:
-                raise err
+                    raise NotFound(err_msg)
+                else:
+                    raise err
 
             count += length
 
@@ -413,10 +411,12 @@ class CKAN(object):
 
         headers = {'User-Agent': user_agent}
         r = requests.get(url, stream=stream, headers=headers)
+        err_msg = 'Access to fetch resource %s was denied.' % resource_id
 
         if any('403' in h.headers.get('x-ckan-error', '') for h in r.history):
-            raise NotAuthorized(
-                'Access to fetch resource %s was denied.' % resource_id)
+            raise NotAuthorized(err_msg)
+        elif r.status_code == 401:
+            raise NotAuthorized(err_msg)
         else:
             return r
 
@@ -628,7 +628,7 @@ class CKAN(object):
 
         try:
             extension = p.splitext(filepath)[1].split('.')[1]
-        except IndexError:
+        except (IndexError, AttributeError):
             # no file extension given, e.g., a tempfile
             extension = cv.ctype2ext(content_type)
 
@@ -643,19 +643,24 @@ class CKAN(object):
             parser_kwargs = {
                 'encoding': kwargs.get('encoding'),
                 'sanitize': kwargs.get('sanitize'),
+                'first_row': kwargs.get('first_row'),
             }
 
-            records = parser(filepath, **parser_kwargs)
-            fields = list(pr.gen_fields(records.next().keys(), type_cast))
-
-            if verbose:
-                print('Parsed fields:')
-                pprint(fields)
+            records = list(parser(filepath, **parser_kwargs))
+            keys = records[0].keys()
+            print('record', records[0])
+            print('keys', keys)
 
             if type_cast:
-                casted_records = pr.gen_type_cast(records, fields)
+                types = list(tt.guess_type_by_field(keys))
+                casted_records = pr.type_cast(records, types)
             else:
+                types = [{'id': key, 'type': 'text'} for key in keys]
                 casted_records = records
+
+            if verbose:
+                print('Parsed types:')
+                pprint(types)
 
             create_kwargs = {k: v for k, v in kwargs.items() if k in keys}
 
@@ -663,14 +668,14 @@ class CKAN(object):
                 self.delete_table(resource_id)
 
             insert_kwargs = {'chunksize': chunk_rows, 'method': method}
-            self.create_table(resource_id, fields, **create_kwargs)
+            self.create_table(resource_id, types, **create_kwargs)
             args = [resource_id, casted_records]
             return self.insert_records(*args, **insert_kwargs)
 
-        def find_ids(self, packages, **kwargs):
-            default = {'rid': '', 'pname': ''}
-            kwargs.update({'method': self.query, 'default': default})
-            return pr.find(packages, **kwargs)
+    def find_ids(self, packages, **kwargs):
+        default = {'rid': '', 'pname': ''}
+        kwargs.update({'method': self.query, 'default': default})
+        return pr.find(packages, **kwargs)
 
     def get_package_id(self, resource_id):
         """Gets the package id of a single resource on filestore.

@@ -7,4 +7,4 @@ requests==2.4.3
 unicodecsv==0.9.4
 xlrd==0.9.3
 xattr==0.7.5
-tabutils==0.19.1
+tabutils==0.19.3
