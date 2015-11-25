@@ -51,6 +51,7 @@ DEF_HASH_PACK = 'hash-table'
 DEF_HASH_RES = 'hash-table.csv'
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
+ENCODING = 'utf-8'
 
 
 class CKAN(object):
@@ -641,9 +642,9 @@ class CKAN(object):
             return False
         else:
             parser_kwargs = {
-                'encoding': kwargs.get('encoding'),
                 'sanitize': kwargs.get('sanitize'),
-                'first_row': kwargs.get('first_row'),
+                'encoding': kwargs.get('encoding', ENCODING),
+                'first_row': kwargs.get('first_row', 0),
             }
 
             records = list(parser(filepath, **parser_kwargs))
