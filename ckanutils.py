@@ -648,13 +648,14 @@ class CKAN(object):
                 'first_row': kwargs.get('first_row', 0),
             }
 
-            records = list(parser(filepath, **parser_kwargs))
-            keys = records[0].keys()
-            print('record', records[0])
-            print('keys', keys)
+            records = parser(filepath, **parser_kwargs)
+            first = records.next()
+            keys = first.keys()
+            records = it.chain([first], records)
 
             if type_cast:
-                types = list(tt.guess_type_by_field(keys))
+                records, results = pr.detect_types(records)
+                types = results['types']
                 casted_records = pr.type_cast(records, types)
             else:
                 types = [{'id': key, 'type': 'text'} for key in keys]
