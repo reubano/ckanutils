@@ -33,6 +33,8 @@ from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import (
     process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
+from tabutils.fntools import CustomEncoder as JSONEncoder
+
 __version__ = '0.14.4'
 
 __title__ = 'ckanutils'
@@ -269,6 +271,10 @@ class CKAN(object):
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
         stop = kwargs.pop('stop', None)
+        encoder = JSONEncoder(ensure_ascii=False, encoding=ENCODING)
+
+        for key, value in kwargs.items():
+            kwargs[key] = encoder.default(value)
 
         kwargs.setdefault('force', self.force)
         kwargs.setdefault('method', 'insert')
