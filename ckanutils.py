@@ -478,7 +478,7 @@ class CKAN(object):
             data = {
                 k: v for k, v in resource.items() if not isinstance(v, dict)}
 
-        resource_id = resource['resource_id']
+        resource_id = resource.get('resource_id')
 
         try:
             if post:
@@ -490,7 +490,7 @@ class CKAN(object):
                 r = {'id': None}
         except NotFound:
             # Keep exception message consistent with the others
-            if 'resource_id' in resource:
+            if resource_id:
                 print(
                     'Resource `%s` was not found in filestore.' % resource_id)
             else:
