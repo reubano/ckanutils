@@ -33,8 +33,6 @@ from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import (
     process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
-from tabutils.fntools import CustomEncoder as JSONEncoder
-
 __version__ = '0.14.5'
 
 __title__ = 'ckanutils'
@@ -268,20 +266,17 @@ class CKAN(object):
             Traceback (most recent call last):
             NotFound: Resource `rid` was not found in filestore.
         """
+        recoded = pr.json_recode(records)
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
         stop = kwargs.pop('stop', None)
-        encoder = JSONEncoder(ensure_ascii=False, encoding=ENCODING)
-
-        for key, value in kwargs.items():
-            kwargs[key] = encoder.default(value)
 
         kwargs.setdefault('force', self.force)
         kwargs.setdefault('method', 'insert')
         kwargs['resource_id'] = resource_id
         count = 1
 
-        for chunk in ft.chunk(records, chunksize, start=start, stop=stop):
+        for chunk in ft.chunk(recoded, chunksize, start=start, stop=stop):
             length = len(chunk)
 
             if self.verbose:
