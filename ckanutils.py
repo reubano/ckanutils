@@ -33,7 +33,7 @@ from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import (
     process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
-__version__ = '0.14.3'
+__version__ = '0.14.4'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
@@ -51,6 +51,7 @@ DEF_HASH_PACK = 'hash-table'
 DEF_HASH_RES = 'hash-table.csv'
 CHUNKSIZE_ROWS = 10 ** 3
 CHUNKSIZE_BYTES = 2 ** 20
+ENCODING = 'utf-8'
 
 
 class CKAN(object):
@@ -641,9 +642,9 @@ class CKAN(object):
             return False
         else:
             parser_kwargs = {
-                'encoding': kwargs.get('encoding'),
                 'sanitize': kwargs.get('sanitize'),
-                'first_row': kwargs.get('first_row'),
+                'encoding': kwargs.get('encoding', ENCODING),
+                'first_row': kwargs.get('first_row', 0),
             }
 
             records = list(parser(filepath, **parser_kwargs))
