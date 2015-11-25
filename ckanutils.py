@@ -35,7 +35,7 @@ from tabutils import (
 
 from tabutils.fntools import CustomEncoder as JSONEncoder
 
-__version__ = '0.14.4'
+__version__ = '0.14.5'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
