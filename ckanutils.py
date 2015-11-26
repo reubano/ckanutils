@@ -634,21 +634,13 @@ class CKAN(object):
             # no file extension given, e.g., a tempfile
             extension = cv.ctype2ext(content_type)
 
-        switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
-
         try:
-            parser = getattr(io, switch[extension])
-        except IndexError:
+            reader = io.get_reader(extension)
+        except TypeError:
             print('Error: plugin for extension `%s` not found!' % extension)
             return False
         else:
-            parser_kwargs = {
-                'sanitize': kwargs.get('sanitize'),
-                'encoding': kwargs.get('encoding', ENCODING),
-                'first_row': kwargs.get('first_row', 0),
-            }
-
-            records = parser(filepath, **parser_kwargs)
+            records = reader(filepath, **kwargs)
             first = records.next()
             keys = first.keys()
             records = it.chain([first], records)
