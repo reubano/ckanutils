@@ -1,6 +1,6 @@
-recursive-include ckanutils/tests *
+recursive-include tests *
 include CHANGES.rst
 include CONTRIBUTING.rst
 include LICENSE
-include README.rst
+include README.md
 include requirements.txt

@@ -33,9 +33,7 @@ from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import (
     process as pr, io, fntools as ft, convert as cv, typetools as tt)
 
-from tabutils.fntools import CustomEncoder as JSONEncoder
-
-__version__ = '0.14.5'
+__version__ = '0.14.6'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
@@ -268,20 +266,17 @@ class CKAN(object):
             Traceback (most recent call last):
             NotFound: Resource `rid` was not found in filestore.
         """
+        recoded = pr.json_recode(records)
         chunksize = kwargs.pop('chunksize', 0)
         start = kwargs.pop('start', 0)
         stop = kwargs.pop('stop', None)
-        encoder = JSONEncoder(ensure_ascii=False, encoding=ENCODING)
-
-        for key, value in kwargs.items():
-            kwargs[key] = encoder.default(value)
 
         kwargs.setdefault('force', self.force)
         kwargs.setdefault('method', 'insert')
         kwargs['resource_id'] = resource_id
         count = 1
 
-        for chunk in ft.chunk(records, chunksize, start=start, stop=stop):
+        for chunk in ft.chunk(recoded, chunksize, start=start, stop=stop):
             length = len(chunk)
 
             if self.verbose:
@@ -639,27 +634,20 @@ class CKAN(object):
             # no file extension given, e.g., a tempfile
             extension = cv.ctype2ext(content_type)
 
-        switch = {'xls': 'read_xls', 'xlsx': 'read_xls', 'csv': 'read_csv'}
-
         try:
-            parser = getattr(io, switch[extension])
-        except IndexError:
+            reader = io.get_reader(extension)
+        except TypeError:
             print('Error: plugin for extension `%s` not found!' % extension)
             return False
         else:
-            parser_kwargs = {
-                'sanitize': kwargs.get('sanitize'),
-                'encoding': kwargs.get('encoding', ENCODING),
-                'first_row': kwargs.get('first_row', 0),
-            }
-
-            records = list(parser(filepath, **parser_kwargs))
-            keys = records[0].keys()
-            print('record', records[0])
-            print('keys', keys)
+            records = reader(filepath, **kwargs)
+            first = records.next()
+            keys = first.keys()
+            records = it.chain([first], records)
 
             if type_cast:
-                types = list(tt.guess_type_by_field(keys))
+                records, results = pr.detect_types(records)
+                types = results['types']
                 casted_records = pr.type_cast(records, types)
             else:
                 types = [{'id': key, 'type': 'text'} for key in keys]
