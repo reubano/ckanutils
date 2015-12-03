@@ -780,8 +780,8 @@ class CKAN(object):
         skwargs = {'key': self.get_update_date, 'reverse': True}
         filtered_packages = self.filter(packages, **pkwargs)
 
-        for p in sorted(filtered_packages, **skwargs):
-            package = self.package_show(id=p['name'])
+        for pack in sorted(filtered_packages, **skwargs):
+            package = self.package_show(id=pack['name'])
             resources = self.filter(package['resources'], **rkwargs)
 
             for resource in sorted(resources, **skwargs):
