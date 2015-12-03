@@ -30,10 +30,9 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import (
-    process as pr, io, fntools as ft, convert as cv, typetools as tt)
+from tabutils import process as pr, io, fntools as ft, convert as cv
 
-__version__ = '0.14.6'
+__version__ = '0.14.7'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
@@ -170,6 +169,7 @@ class CKAN(object):
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
         kwargs['fields'] = fields
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
         if self.verbose:
             print('Creating table `%s` in datastore...' % resource_id)
@@ -178,8 +178,7 @@ class CKAN(object):
             return self.datastore_create(**kwargs)
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise
 
@@ -204,9 +203,13 @@ class CKAN(object):
 
         Examples:
             >>> CKAN(quiet=True).delete_table('rid')
+            Can't delete. Table `rid` was not found in datastore.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
+        init_msg = "Can't delete. Table `%s`" % resource_id
+        err_msg = '%s was not found in datastore.' % init_msg
+        read_msg = '%s is read only.' % init_msg
 
         if self.verbose:
             print('Deleting table `%s` from datastore...' % resource_id)
@@ -214,25 +217,15 @@ class CKAN(object):
         try:
             result = self.datastore_delete(**kwargs)
         except NotFound:
+            print(err_msg)
             result = None
-
-            if self.verbose:
-                print(
-                    "Can't delete. Table `%s` was not found in datastore." %
-                    resource_id)
         except ValidationError as err:
             if 'read-only' in err.error_dict:
-                print(
-                    "Can't delete. Datastore table is read only. Set "
-                    "'force' to True and try again.")
-
+                print(read_msg)
+                print("Set 'force' to True and try again.")
                 result = None
             elif err.error_dict.get('resource_id') == ['Not found: Resource']:
-                if self.verbose:
-                    print(
-                        "Can't delete. Table `%s` was not found in datastore." %
-                        resource_id)
-
+                print(err_msg)
                 result = None
             else:
                 raise err
@@ -342,26 +335,22 @@ class CKAN(object):
             'limit': 1
         }
 
+        err_msg = 'Resource `%s` was not found' % resource_id
+        alt_msg = 'Hash table `%s` was not found' % self.hash_table_id
+
         try:
             result = self.datastore_search(**kwargs)
             resource_hash = result['records'][0]['hash']
         except NotFound:
-            message = (
-                'Hash table `%s` was not found in datastore!' %
-                self.hash_table_id)
-
+            message = '%s in datastore!' % alt_msg
             raise NotFound({'message': message, 'item': 'datastore'})
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound('%s in filestore.' % err_msg)
             else:
                 raise err
         except IndexError:
-            if self.verbose:
-                print(
-                    'Resource `%s` was not found in hash table.' % resource_id)
-
+            print('%s in hash table.' % err_msg)
             resource_hash = None
 
         if self.verbose:
@@ -392,17 +381,15 @@ class CKAN(object):
             NotFound: Resource `rid` was not found in filestore.
         """
         user_agent = user_agent or self.user_agent
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            raise NotFound(
-                'Resource `%s` was not found in filestore.' % resource_id)
+            raise NotFound(err_msg)
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
 
@@ -422,17 +409,18 @@ class CKAN(object):
         else:
             return r
 
-    def _update_filestore(self, resource, message, **kwargs):
-        """Helps create or update a single resource on filestore.
-        To create a resource, you must supply either `url`, `filepath`, or
-        `fileobj`.
+    def get_filestore_update_func(self, resource, **kwargs):
+        """Returns the function to create or update a single resource on
+        filestore. To create a resource, you must supply either `url`,
+        `filepath`, or `fileobj`.
 
         Args:
             resource (dict): The resource passed to resource_create.
             **kwargs: Keyword arguments that are passed to resource_create.
 
         Kwargs:
-            url (str): New file url (for file link).
+            url (str): New file url (for file link, requires `format`).
+            format (str): New file format (for file link, requires `url`).
             fileobj (obj): New file like object (for file upload).
             filepath (str): New file path (for file upload).
             post (bool): Post data using requests instead of ckanapi.
@@ -441,23 +429,25 @@ class CKAN(object):
             hash (str): The resource hash.
 
         Returns:
-            obj: requests.Response object if `post` option is specified,
-                ckan resource object otherwise.
+            tuple: (func, args, data)
+                where func is `requests.post` if `post` option is specified,
+                `self.resource_create` otherwise. `args` and `data` should be
+                passed as *args and **kwargs respectively.
+
+        See also:
+            ckanutils._update_filestore
 
         Examples:
             >>> ckan = CKAN(quiet=True)
-            >>> url = 'http://example.com/file'
-            >>> resource = {'package_id': 'pid'}
-            >>> message = 'Creating new resource...'
-            >>> kwargs = {'name': 'name', 'url': 'http://example.com', \
-'format': 'csv'}
-            >>> ckan._update_filestore(resource, message, **kwargs)
-            Package `pid` was not found.
-            >>> resource.update({'resource_id': 'rid', 'name': 'name'})
-            >>> resource.update({'description': 'description', 'hash': 'hash'})
-            >>> message = 'Updating resource...'
-            >>> ckan._update_filestore(resource, message, url=url)
-            Resource `rid` was not found in filestore.
+            >>> resource = {
+            ...     'name': 'name', 'package_id': 'pid', 'resource_id': 'rid',
+            ...     'description': 'description', 'hash': 'hash'}
+            >>> kwargs = {'url': 'http://example.com/file', 'format': 'csv'}
+            >>> res = ckan.get_filestore_update_func(resource, **kwargs)
+            >>> func, args, kwargs = res
+            >>> func(*args, **kwargs)
+            Traceback (most recent call last):
+            NotFound: Not found
         """
         post = kwargs.pop('post', None)
         filepath = kwargs.pop('filepath', None)
@@ -465,46 +455,79 @@ class CKAN(object):
         f = open(filepath, 'rb') if filepath else fileobj
         resource.update(kwargs)
 
-        if self.verbose:
-            print(message)
-
         if post:
-            url = '%s/api/action/resource_create' % self.address
+            args = ['%s/api/action/resource_create' % self.address]
             hdrs = {
                 'X-CKAN-API-Key': self.api_key, 'User-Agent': self.user_agent}
 
             data = {'data': resource, 'headers': hdrs}
             data.update({'files': {'upload': f}}) if f else None
+            func = requests.post
         else:
+            args = []
             resource.update({'upload': f}) if f else None
             data = {
                 k: v for k, v in resource.items() if not isinstance(v, dict)}
+            func = self.resource_create
 
-        resource_id = resource.get('resource_id')
+        return (func, args, data)
+
+    def _update_filestore(self, func, *args, **kwargs):
+        """Helps create or update a single resource on filestore.
+        To create a resource, you must supply either `url`, `filepath`, or
+        `fileobj`.
+
+        Args:
+            func (func): The resource passed to resource_create.
+            *args: Postional arguments that are passed to `func`
+            **kwargs: Keyword arguments that are passed to `func`.
+
+        Kwargs:
+            url (str): New file url (for file link).
+            fileobj (obj): New file like object (for file upload).
+            filepath (str): New file path (for file upload).
+            name (str): The resource name.
+            description (str): The resource description.
+            hash (str): The resource hash.
+
+        Returns:
+            obj: requests.Response object if `post` option is specified,
+                ckan resource object otherwise.
+
+        See also:
+            ckanutils.get_filestore_update_func
+
+        Examples:
+            >>> ckan = CKAN(quiet=True)
+            >>> url = 'http://example.com/file'
+            >>> resource = {'package_id': 'pid'}
+            >>> kwargs = {'name': 'name', 'url': url, 'format': 'csv'}
+            >>> res = ckan.get_filestore_update_func(resource, **kwargs)
+            >>> ckan._update_filestore(res[0], *res[1], **res[2])
+            Package `pid` was not found.
+            >>> resource['resource_id'] = 'rid'
+            >>> res = ckan.get_filestore_update_func(resource, **kwargs)
+            >>> ckan._update_filestore(res[0], *res[1], **res[2])
+            Resource `rid` was not found in filestore.
+        """
+        data = kwargs.get('data', {})
+        files = kwargs.get('files', {})
+        resource_id = kwargs.get('resource_id', data.get('resource_id'))
+        package_id = kwargs.get('package_id', data.get('package_id'))
+        f = kwargs.get('upload', files.get('upload'))
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
         try:
-            if post:
-                r = requests.post(url, **data)
-            else:
-                # resource_create is supposed to return the created resource,
-                # but doesn't for whatever reason
-                self.resource_create(**data)
-                r = {'id': None}
+            r = func(*args, **kwargs) or {'id': None}
         except NotFound:
-            # Keep exception message consistent with the others
-            if resource_id:
-                print(
-                    'Resource `%s` was not found in filestore.' % resource_id)
-            else:
-                print('Package `%s` was not found.' % resource['package_id'])
+            pck_msg = 'Package `%s` was not found.' % package_id
+            print(err_msg if resource_id else pck_msg)
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                print(err_msg)
+                r = None
             else:
                 raise err
-
-            return None
         except requests.exceptions.ConnectionError as err:
             if 'Broken pipe' in err.message[1]:
                 print('File size too large. Try uploading a smaller file.')
@@ -575,8 +598,12 @@ class CKAN(object):
         kwargs.setdefault('url', 'http://example.com')
         kwargs['format'] = file_format
         resource = {'package_id': package_id}
-        message = 'Creating new resource in package %s...' % package_id
-        return self._update_filestore(resource, message, **kwargs)
+
+        if self.verbose:
+            print('Creating new resource in package %s...' % package_id)
+
+        func, args, data = self.get_filestore_update_func(resource, **kwargs)
+        return self._update_filestore(func, *args, **data)
 
     def update_filestore(self, resource_id, **kwargs):
         """Updates a single resource on filestore.
@@ -602,22 +629,26 @@ class CKAN(object):
             >>> CKAN(quiet=True).update_filestore('rid')
             Resource `rid` was not found in filestore.
         """
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
+
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            print('Resource `%s` was not found in filestore.' % resource_id)
+            print(err_msg)
             return None
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
         else:
             resource['package_id'] = self.get_package_id(resource_id)
-            message = 'Updating resource %s...' % resource_id
-            return self._update_filestore(resource, message, **kwargs)
+
+            if self.verbose:
+                print('Updating resource %s...' % resource_id)
+
+            f, args, data = self.get_filestore_update_func(resource, **kwargs)
+            return self._update_filestore(f, *args, **data)
 
     def update_datastore(self, resource_id, filepath, **kwargs):
         verbose = not kwargs.get('quiet')
@@ -685,16 +716,16 @@ class CKAN(object):
             >>> CKAN(quiet=True).get_package_id('rid')
             Resource `rid` was not found in filestore.
         """
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
+
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            print('Resource `%s` was not found in filestore.' % resource_id)
+            print(err_msg)
             return None
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
         else:
@@ -781,8 +812,8 @@ class CKAN(object):
         skwargs = {'key': self.get_update_date, 'reverse': True}
         filtered_packages = self.filter(packages, **pkwargs)
 
-        for p in sorted(filtered_packages, **skwargs):
-            package = self.package_show(id=p['name'])
+        for pack in sorted(filtered_packages, **skwargs):
+            package = self.package_show(id=pack['name'])
             resources = self.filter(package['resources'], **rkwargs)
 
             for resource in sorted(resources, **skwargs):
