@@ -32,7 +32,7 @@ from pprint import pprint
 from ckanapi import NotFound, NotAuthorized, ValidationError
 from tabutils import process as pr, io, fntools as ft, convert as cv
 
-__version__ = '0.14.8'
+__version__ = '0.14.9'
 
 __title__ = 'ckanutils'
 __author__ = 'Reuben Cummings'
