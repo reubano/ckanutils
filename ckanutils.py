@@ -30,8 +30,7 @@ from operator import itemgetter
 from pprint import pprint
 
 from ckanapi import NotFound, NotAuthorized, ValidationError
-from tabutils import (
-    process as pr, io, fntools as ft, convert as cv, typetools as tt)
+from tabutils import process as pr, io, fntools as ft, convert as cv
 
 __version__ = '0.14.6'
 
