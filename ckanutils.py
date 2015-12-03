@@ -169,6 +169,7 @@ class CKAN(object):
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
         kwargs['fields'] = fields
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
         if self.verbose:
             print('Creating table `%s` in datastore...' % resource_id)
@@ -177,8 +178,7 @@ class CKAN(object):
             return self.datastore_create(**kwargs)
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise
 
@@ -203,9 +203,13 @@ class CKAN(object):
 
         Examples:
             >>> CKAN(quiet=True).delete_table('rid')
+            Can't delete. Table `rid` was not found in datastore.
         """
         kwargs.setdefault('force', self.force)
         kwargs['resource_id'] = resource_id
+        init_msg = "Can't delete. Table `%s`" % resource_id
+        err_msg = '%s was not found in datastore.' % init_msg
+        read_msg = '%s is read only.' % init_msg
 
         if self.verbose:
             print('Deleting table `%s` from datastore...' % resource_id)
@@ -213,25 +217,15 @@ class CKAN(object):
         try:
             result = self.datastore_delete(**kwargs)
         except NotFound:
+            print(err_msg)
             result = None
-
-            if self.verbose:
-                print(
-                    "Can't delete. Table `%s` was not found in datastore." %
-                    resource_id)
         except ValidationError as err:
             if 'read-only' in err.error_dict:
-                print(
-                    "Can't delete. Datastore table is read only. Set "
-                    "'force' to True and try again.")
-
+                print(read_msg)
+                print("Set 'force' to True and try again.")
                 result = None
             elif err.error_dict.get('resource_id') == ['Not found: Resource']:
-                if self.verbose:
-                    print(
-                        "Can't delete. Table `%s` was not found in datastore." %
-                        resource_id)
-
+                print(err_msg)
                 result = None
             else:
                 raise err
@@ -341,26 +335,22 @@ class CKAN(object):
             'limit': 1
         }
 
+        err_msg = 'Resource `%s` was not found' % resource_id
+        alt_msg = 'Hash table `%s` was not found' % self.hash_table_id
+
         try:
             result = self.datastore_search(**kwargs)
             resource_hash = result['records'][0]['hash']
         except NotFound:
-            message = (
-                'Hash table `%s` was not found in datastore!' %
-                self.hash_table_id)
-
+            message = '%s in datastore!' % alt_msg
             raise NotFound({'message': message, 'item': 'datastore'})
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound('%s in filestore.' % err_msg)
             else:
                 raise err
         except IndexError:
-            if self.verbose:
-                print(
-                    'Resource `%s` was not found in hash table.' % resource_id)
-
+            print('%s in hash table.' % err_msg)
             resource_hash = None
 
         if self.verbose:
@@ -391,17 +381,15 @@ class CKAN(object):
             NotFound: Resource `rid` was not found in filestore.
         """
         user_agent = user_agent or self.user_agent
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
 
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            raise NotFound(
-                'Resource `%s` was not found in filestore.' % resource_id)
+            raise NotFound(err_msg)
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
 
@@ -601,16 +589,16 @@ class CKAN(object):
             >>> CKAN(quiet=True).update_filestore('rid')
             Resource `rid` was not found in filestore.
         """
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
+
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            print('Resource `%s` was not found in filestore.' % resource_id)
+            print(err_msg)
             return None
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
         else:
@@ -684,16 +672,16 @@ class CKAN(object):
             >>> CKAN(quiet=True).get_package_id('rid')
             Resource `rid` was not found in filestore.
         """
+        err_msg = 'Resource `%s` was not found in filestore.' % resource_id
+
         try:
             resource = self.resource_show(id=resource_id)
         except NotFound:
-            # Keep exception message consistent with the others
-            print('Resource `%s` was not found in filestore.' % resource_id)
+            print(err_msg)
             return None
         except ValidationError as err:
             if err.error_dict.get('resource_id') == ['Not found: Resource']:
-                raise NotFound(
-                    'Resource `%s` was not found in filestore.' % resource_id)
+                raise NotFound(err_msg)
             else:
                 raise err
         else:
